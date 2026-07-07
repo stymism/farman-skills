@@ -1,0 +1,20 @@
+# caches / build artifacts
+**/.wrangler/
+**/node_modules/
+**/__pycache__/
+**/.venv/
+**/dist/
+**/build/
+
+# secrets — never commit
+**/.env
+**/.env.*
+**/*.credentials.json
+**/plaud-config.json
+**/secrets.*
+**/*.pem
+**/*.key
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "name": "design-suite",
+  "description": "ブランドアイデンティティ、デザイントークン、UI/UX設計(67スタイル・161パレット)、バナー、アイコン、HTMLスライド、フロントエンド設計の総合デザインスキル集。ロゴ/アイコン生成には環境変数 GEMINI_API_KEY が必要(任意)。",
+  "version": "1.0.0",
+  "author": {
+    "name": "y-ino",
+    "email": "y-ino@farman.jp"
+  }
+}

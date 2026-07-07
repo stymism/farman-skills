@@ -1,0 +1,9 @@
+{
+  "name": "farman-tools",
+  "description": "farman.jp(自社サイト)のWordPress「お知らせ」へプレスリリース・メディア掲載・登壇情報等を既存書式に合わせて一括投稿。認証はブラウザのログインセッション(X-WP-Nonce)経由のため、実行環境にfarman.jpへログイン済みのブラウザ接続が必要。",
+  "version": "1.0.0",
+  "author": {
+    "name": "y-ino",
+    "email": "y-ino@farman.jp"
+  }
+}

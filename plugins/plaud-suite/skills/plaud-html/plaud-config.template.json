@@ -1,0 +1,41 @@
+{
+    "plaud":  {
+                  "api_token":  "YOUR_PLAUD_API_TOKEN_HERE",
+                  "api_base":  "https://api-apne1.plaud.ai",
+                  "folder_ids":  {
+                                     "internal":  "c35095465864259130869d88d1b13419",
+                                     "external":  "dd2c13edefb7d164495eb6b8b2364d2d",
+                                     "kowa":  "5010d2625dc09b0713ac337c49893a4d"
+                                 },
+                  "email":  "YOUR_PLAUD_LOGIN_EMAIL",
+                  "password":  "YOUR_PLAUD_LOGIN_PASSWORD"
+              },
+    "asana":  {
+                  "_note":  "AsanaはMCPコネクタ経由（PATトークン不要）。以下は担当者名→プロジェクトGIDの対応表",
+                  "assignee_gid":  "1214760378378159",
+                  "projects":  {
+                                   "井出":  "1214760871469759",
+                                   "田中":  "1214760871469775",
+                                   "瀬戸山":  "1214760871469812",
+                                   "井上":  "1214760900570651",
+                                   "関根":  "1214760871469747",
+                                   "豊田":  "1214760871469796",
+                                   "青柳":  "1214760871469806",
+                                   "複数人":  "1214855321951743"
+                               }
+              },
+    "cloudflare":  {
+                       "account_id":  "d110669e3f96b8725ea5bb1b149d61ab",
+                       "api_token":  "YOUR_CLOUDFLARE_API_TOKEN_HERE",
+                       "project_name":  "farman-mtg"
+                   },
+    "paths":  {
+                  "work_dir":  "~/OneDrive/ドキュメント/plaud_summaries",
+                  "html_output":  ".",
+                  "index_file":  "index.html",
+                  "kowa_knowledge_file":  "kowa-knowledge.html",
+                  "bundle_zip":  "~/.plaud/plaud-html-bundle.zip"
+              },
+    "email":  "y-ino@farman.jp",
+    "version":  "1.0"
+}

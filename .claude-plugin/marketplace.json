@@ -1,0 +1,29 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "farman-skills",
+  "description": "Farman/y-ino 個人スキル・マーケットプレイス。ローカルClaude CodeとクラウドCoworkの両方で同じスキル群を使うための配布リポジトリ。",
+  "owner": {
+    "name": "y-ino",
+    "email": "y-ino@farman.jp"
+  },
+  "plugins": [
+    {
+      "name": "plaud-suite",
+      "source": "./plugins/plaud-suite",
+      "description": "Plaud録音の閲覧・要約・検索・書き起こし・フォローアップ生成・外部連携・HTMLサマリー生成。Plaud MCPサーバー(@plaud-ai/mcp)を同梱。",
+      "category": "productivity"
+    },
+    {
+      "name": "farman-tools",
+      "source": "./plugins/farman-tools",
+      "description": "farman.jp(自社サイト)のWordPress「お知らせ」へ記事を一括投稿するスキル。",
+      "category": "productivity"
+    },
+    {
+      "name": "design-suite",
+      "source": "./plugins/design-suite",
+      "description": "ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド設計の総合デザインスキル集。",
+      "category": "design"
+    }
+  ]
+}
