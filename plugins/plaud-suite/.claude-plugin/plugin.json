@@ -1,7 +1,7 @@
 {
   "name": "plaud-suite",
   "description": "Plaud録音の閲覧・要約・検索・書き起こし・フォローアップ生成・外部連携(Notion/Slack/HubSpot等)・HTMLサマリー生成。Plaud MCPサーバーを同梱。初回は mcp__plaud__login で対話ログインが必要。",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "y-ino",
     "email": "y-ino@farman.jp"
