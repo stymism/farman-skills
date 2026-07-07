@@ -33,8 +33,7 @@
                   "work_dir":  "~/OneDrive/ドキュメント/plaud_summaries",
                   "html_output":  ".",
                   "index_file":  "index.html",
-                  "kowa_knowledge_file":  "kowa-knowledge.html",
-                  "bundle_zip":  "~/.plaud/plaud-html-bundle.zip"
+                  "kowa_knowledge_file":  "kowa-knowledge.html"
               },
     "email":  "y-ino@farman.jp",
     "version":  "1.0"

@@ -30,5 +30,13 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 - **秘密情報は一切コミットしない。** 認証は各実行環境で対話ログイン(plaud)、ブラウザセッション(farman)、環境変数(design/GEMINI_API_KEY)で解決する。
 - `.gitignore` で `.env` / `*.credentials.json` / `plaud-config.json` / `.wrangler` 等を除外済み。
 
-## メンテナンス
-ローカルのスキル本体は `~/.claude-code/skills/` にある。スキルを更新したら、このリポジトリの `plugins/<group>/skills/<skill>/` に反映してコミット・pushすると両環境へ配布される。
+## メンテナンス（編集はここが正本）
+スキルの正本は**このリポジトリ**（`plugins/<group>/skills/<skill>/`）。編集→commit→push後、各環境で更新する:
+- ローカルPC: `claude plugin update <plugin>@farman-skills`（マーケットプレイス更新は `claude plugin marketplace update farman-skills`）
+- Cowork: プラグインUIから更新
+- 未導入PCの導入は1行: `irm https://raw.githubusercontent.com/stymism/farman-skills/main/migrate.ps1 | iex`
+
+※ `~/.claude-code/skills/` の素置きコピーは全廃済み（2026-07-07）。そこにファイルを置かないこと。
+
+## 関連リポジトリ
+- `stymism/farman-mtg-site`（**非公開**）: farman-mtg.pages.dev のデプロイ用。plaud-html の STEP7 が push → Cloudflare Pages が自動公開

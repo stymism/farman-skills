@@ -7,7 +7,7 @@
     POST {api_base}/auth/access-token  (multipart/form-data)
       username=<email> / password=<平文> / client_id=web / password_encrypted=false
     → 成功時 Set-Cookie の `pld_ut`（JWT）が新トークン。"Bearer <jwt>" を保存。
-  更新先：~/.plaud/plaud-config.json / <OneDrive>\claude-skills\plaud-config.json / 配布ZIP内 plaud-config.json
+  更新先：~/.plaud/plaud-config.json（存在すれば <OneDrive>\claude-skills\plaud-config.json も）
 .NOTES
   - email/password は config の plaud.email / plaud.password を使用（setup-plaud.ps1 で設定）。
   - ログインは Plaud 側で 1時間あたり10回の制限あり。失効時のみ呼ぶこと。
@@ -76,22 +76,7 @@ foreach ($cf in @("$env:USERPROFILE\.plaud\plaud-config.json", "$env:OneDrive\cl
     $updated += (Split-Path $cf -Leaf) + '@' + (Split-Path (Split-Path $cf) -Leaf)
   }
 }
-# 配布ZIP内 config
-$zip = if ($cfg.paths.bundle_zip) { $cfg.paths.bundle_zip -replace '~', $env:USERPROFILE } else { "$env:USERPROFILE\.plaud\plaud-html-bundle.zip" }
-if (Test-Path $zip) {
-  $za = [System.IO.Compression.ZipFile]::Open($zip, [System.IO.Compression.ZipArchiveMode]::Update)
-  $e = $za.Entries | Where-Object { $_.FullName -eq 'plaud-config.json' }
-  if ($e) {
-    $sr = New-Object System.IO.StreamReader($e.Open()); $jj = $sr.ReadToEnd(); $sr.Close()
-    $o = $jj | ConvertFrom-Json; $o.plaud.api_token = $newToken
-    $nj = $o | ConvertTo-Json -Depth 10
-    $st = $e.Open(); $st.SetLength(0)
-    $sw = New-Object System.IO.StreamWriter($st, (New-Object System.Text.UTF8Encoding($false)))
-    $sw.Write($nj); $sw.Flush(); $sw.Dispose(); $st.Dispose()
-    $updated += 'ZIP'
-  }
-  $za.Dispose()
-}
+# （配布ZIP更新は廃止 — 2026-07-07。スキル配布はGitHubマーケットプレイスに移行）
 
 # --- 有効期限を表示 ---
 $payload = $jwt.Split('.')[1]

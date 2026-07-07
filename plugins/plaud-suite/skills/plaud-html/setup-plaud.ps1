@@ -74,14 +74,14 @@ Write-Host "      → このスクリプトが置かれている $($PSScriptRoot
 Write-Host "        各PCに存在している必要があります（プラグイン/スキル同期 or 手動コピー）。" -ForegroundColor Gray
 Write-Host ""
 
-# (c) wrangler CLI（Cloudflareデプロイ用）のチェック
-Write-Host "  [3] wrangler CLI（Cloudflare Pagesデプロイ用）" -ForegroundColor White
-$wranglerCmd = Get-Command wrangler -ErrorAction SilentlyContinue
-if ($wranglerCmd) {
-  Write-Host "      ✓ wrangler が見つかりました: $($wranglerCmd.Source)" -ForegroundColor Green
+# (c) git（デプロイ＝サイトrepoへのpush用）のチェック
+Write-Host "  [3] git（Cloudflare Pages Git連携デプロイ用）" -ForegroundColor White
+$gitCmd = Get-Command git -ErrorAction SilentlyContinue
+if ($gitCmd) {
+  Write-Host "      ✓ git が見つかりました: $($gitCmd.Source)" -ForegroundColor Green
 } else {
-  Write-Host "      ✗ wrangler が見つかりません。" -ForegroundColor Yellow
-  Write-Host "        デプロイを使う場合は次でインストール: npm install -g wrangler" -ForegroundColor Yellow
+  Write-Host "      ✗ git が見つかりません。" -ForegroundColor Yellow
+  Write-Host "        デプロイを使う場合は git-scm.com から導入し、gh auth login で認証" -ForegroundColor Yellow
 }
 Write-Host ""
 
