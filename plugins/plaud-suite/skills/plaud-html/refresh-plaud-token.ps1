@@ -86,15 +86,14 @@ $exp = [DateTimeOffset]::FromUnixTimeSeconds([int64](([System.Text.Encoding]::UT
 Write-Host ("✅ トークン自動再取得・更新完了（{0}箇所: {1}）" -f $updated.Count, ($updated -join ', ')) -ForegroundColor Green
 Write-Host ("   有効期限: {0}（あと約{1}時間）" -f $exp, [math]::Round(($exp-(Get-Date)).TotalHours,1)) -ForegroundColor Green
 
-# --- 新PC用ZIPの自動作り直し（既に存在する配布元PCでのみ・最新トークンで上書き） ---
+# --- 新PC用ZIPの自動作り直し（全PC・トークン再取得のたびに毎回更新） ---
 # トークンが変わるたびにZIPを追随させ、手動の「作り直し」を不要にする。
-# ZIPが無いPC（消費専用PC）には秘密入りZIPを新規生成しない。
+# どのPCでも最新ZIPを持てるよう常に生成する（ZIP内の秘密は各PCの ~/.plaud と同一＝信頼境界は不変）。
 try {
-  $zipOut = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'plaud-newpc-setup.zip'
-  $maker  = Join-Path $PSScriptRoot 'make-newpc-zip.ps1'
-  if ((Test-Path $zipOut) -and (Test-Path $maker)) {
+  $maker = Join-Path $PSScriptRoot 'make-newpc-zip.ps1'
+  if (Test-Path $maker) {
     & $maker | Out-Null
-    Write-Host "   新PC用ZIP: 最新トークンで自動更新しました" -ForegroundColor Green
+    Write-Host "   新PC用ZIP: 最新トークンで自動更新しました（ドキュメント）" -ForegroundColor Green
   }
 } catch {
   Write-Host "   （新PC用ZIPの自動更新はスキップ: $($_.Exception.Message)）" -ForegroundColor DarkGray
