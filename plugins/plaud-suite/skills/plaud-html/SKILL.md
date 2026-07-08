@@ -111,6 +111,27 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 
 ---
 
+## 🛠 ハマりどころ・検証法（2026-07-08 追記／同じ遠回りをしないための記録）
+
+### PowerShellの文字コード（最重要・日本語が壊れる原因の大半）
+- **HTMLファイル(index.html・各サマリー)をPowerShellの文字列置換で編集しない。** `Get-Content -Raw`（`-Encoding UTF8` 無し）はUTF-8ファイルをANSIで誤読して文字化けする→そのまま書き戻すと**ファイル全体を破壊**する。HTMLの読み・検索・編集は必ず **Read / Grep / Edit ツール**（UTF-8対応）で行う。
+- **PowerShellコマンドにインラインで日本語を書かない**（`$x='社内'` 等がパースエラー/文字化け）。日本語を含む処理は **.ps1ファイルに書いてから実行**する。
+- **Writeツールが作る.ps1にはBOMが無い**→PowerShell 5.1がANSI誤読する。日本語を含む.ps1は実行前に**UTF-8 BOMを付与**：`$b=[IO.File]::ReadAllBytes($f); if($b[0]-ne0xEF){[IO.File]::WriteAllBytes($f,([byte[]](0xEF,0xBB,0xBF))+$b)}`
+- Plaud APIの日本語(filename)は `Invoke-RestMethod` だと壊れる→`Invoke-WebRequest -UseBasicParsing` + `[Text.Encoding]::UTF8.GetString($wr.RawContentStream.ToArray()) | ConvertFrom-Json`（STEP1参照）。
+
+### 見た目（色・視認性）の検証法
+- **Claude Desktopのプレビューパネルは独自のwebviewキャッシュを持ち、ブラウザのキャッシュクリアやreloadでも更新されないことがある。** 「見た目が変わってない」と言われても、ファイルは直っている場合がある。プレビュー表示を絶対視しない。
+- **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。
+- CSSの見た目修正は**共通ファイル(enhance.css)の1ルール**に集約する。**ページごとのインライン小細工（`style=... !important` 等）は付けない**（enhance.cssが正・全ページに効く）。
+
+### チャート内エンティティの色（対応済み）
+- enhance.js は `<meta name="entities">` の語を本文中で自動 `<span class="ent">` 化する（親が flex の直下は除外するが、`<p>`直下は対象）。暗い背景の `.chart-container` 内では既定色 `--accent-strong`(#92400e) が埋もれる。→ **enhance.css の `.chart-container .ent{ color:var(--accent-300) }`**（bold と同色）で解決済み。ページ側の追加ルールは不要。
+
+### デプロイ検証
+- git push 後、Cloudflare Pages API でデプロイ状態をポーリング（`github:push`トリガー→`deploy/success` は十数秒）。公開サイトは未ログインだとログイン画面(HTTP 200)が返るため、内容確認は**ローカルサーバーかログイン後**に行う（`pages.dev` の生fetchでタイトル等を見ても中身は判定できない）。
+
+---
+
 ## 実行ステップ
 
 ### STEP 0: 事前チェック（別PC対応・プリフライト）★必ず最初に実行
@@ -204,48 +225,55 @@ $apiBase = $config.plaud.api_base
 $INTERNAL = $config.plaud.folder_ids.internal
 $EXTERNAL = $config.plaud.folder_ids.external
 $KOWA = $config.plaud.folder_ids.kowa
+$MENSETSU = $config.plaud.folder_ids.mensetsu   # 面接=HTML化対象外（無ければ$null）
 
 # 2. 作業ディレクトリをパス展開
 $workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-if (-not (Test-Path $workDir)) {
-  Write-Host "作業ディレクトリを作成します: $workDir" -ForegroundColor Yellow
-  New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-}
+if (-not (Test-Path $workDir)) { New-Item -ItemType Directory -Path $workDir -Force | Out-Null }
 
-# 3. Plaud APIから未HTML化ファイルを取得
-$resp = Invoke-RestMethod -Uri "$apiBase/file/simple/web?skip=0&limit=200&is_trash=0&sort_by=start_time&is_desc=true" `
-    -Headers @{ Authorization = $token }
+# 3. Plaud APIから一覧取得
+#    ⚠️ 文字化け防止: Invoke-RestMethod は日本語 filename を壊す。必ず Invoke-WebRequest で
+#    生バイトを取り、UTF-8で明示デコードしてから ConvertFrom-Json する。
+$wr = Invoke-WebRequest -Uri "$apiBase/file/simple/web?skip=0&limit=200&is_trash=0&sort_by=start_time&is_desc=true" -Headers @{ Authorization = $token } -UseBasicParsing
+$resp = ([System.Text.Encoding]::UTF8.GetString($wr.RawContentStream.ToArray())) | ConvertFrom-Json
 
 foreach ($f in $resp.data_file_list) {
-    $tags = $f.filetag_id_list
-    if ($tags -contains $INTERNAL)       { $folder = 'internal' }
-    elseif ($tags -contains $EXTERNAL)   { $folder = 'external' }
-    elseif ($tags -contains $KOWA)       { $folder = 'kowa' }
-    else                                 { $folder = 'unclassified' }
-    Write-Output "$($f.id) $folder $($f.filename)"
+    $tags = @($f.filetag_id_list)
+    if     ($tags -contains $INTERNAL) { $folder = 'internal' }
+    elseif ($tags -contains $EXTERNAL) { $folder = 'external' }
+    elseif ($tags -contains $KOWA)     { $folder = 'kowa' }
+    elseif ($MENSETSU -and ($tags -contains $MENSETSU)) { $folder = 'mensetsu' }  # 面接=対象外
+    else   { $folder = 'unclassified' }
+    # ⚠️ start_time はミリ秒。HTMLファイル名の日付は filename 先頭 "MM-DD" を優先（start_timeとズレる録音あり）
+    $fnDate = if ($f.filename -match '^(\d{2})-(\d{2})') { "2026-$($matches[1])-$($matches[2])" } else { ([DateTimeOffset]::FromUnixTimeMilliseconds([int64]$f.start_time)).ToLocalTime().ToString('yyyy-MM-dd') }
+    Write-Output "$($f.id) $folder $fnDate $($f.filename)"
 }
 ```
 
 - `filetag_id_list` に社内フォルダID（`c35095465864259130869d88d1b13419`）が含まれる → **🏢 社内**
 - `filetag_id_list` に社外フォルダID（`dd2c13ed...`）が含まれる → **🤝 社外**
 - `filetag_id_list` に講話録音フォルダID（`5010d262...`）が含まれる → **🎤 講話録音**
-- どれも含まれない → `unclassified`（未振り分け、スキップして完了報告に記載）
+- `filetag_id_list` に面接フォルダID（`$MENSETSU` = `7e78f76c...`）が含まれる → **面接 = HTML化対象外**。採用面接は個人情報のため、生成もindex追加もしない。完了報告への記載も不要
+- どれも含まれない → `unclassified`（**未振り分け = 要対応**。スキップし「未分類◯件・要フォルダ分け」と完了報告に**明示**する）
 
 > **⚠️ 社内フォルダIDについて：** 社内ファイルがPlaudに追加されたタイミングで `filetag_id_list` の値を確認し、`$INTERNAL` を更新すること。
 
-既存HTMLとの照合（PowerShell）:
+既存HTMLとの照合（**日付プレフィックスだけの照合は禁止**）:
+
+> ⚠️ **過去の重大バグ（2026-07-08）:** 「その日付のHTMLが1つでもあれば済」と判定すると、**同じ日に複数MTGがある日**（例: 07-03に録音3件・HTML1件）で未処理分を「済」と誤検知する。必ず**日付ごとに『録音の件数・タイトル』と『実在するHTMLファイル名』を突き合わせる**こと。
+
 ```powershell
-# 設定ファイルから作業ディレクトリを読み込む
 $configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
 $config = Get-Content $configPath -Raw | ConvertFrom-Json
 $workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-
-Get-ChildItem "$workDir\*.html" | Select-Object -ExpandProperty Name
+# 既存HTMLを日付順に列挙し、STEP1の録音一覧と「日付単位」で突き合わせる
+Get-ChildItem "$workDir\*.html" | Select-Object -ExpandProperty Name | Sort-Object
 ```
+ある日付で「録音N件 > 実在HTML M件」なら未処理が (N−M) 件。タイトル(filename)とHTMLファイル名を1件ずつ対応付け、未HTML化の録音を確定する。
 
 **ファイル名の対応ルール:**
 - Plaud名: `06-01 ファーマン全体MTG` → HTMLファイル名: `2026-06-01_farman-zentai.html`
-- 日付は `start_time` から取得（YYYY-MM-DD形式）
+- 日付は **filename 先頭の "MM-DD"** を使う（`start_time`はミリ秒で、録音日とファイル名日付がズレる録音がある。HTMLファイル名は**filename日付**基準）
 - 名前はローマ字スネークケースに変換（ファーマン→farman、全体→zentai、井上/田中→inoue-tanaka）
 
 **⚠️ タイトル・固有名詞の忠実転記ルール（厳守）**
@@ -319,7 +347,8 @@ STEP 1 の `filetag_id_list` の結果を使う。タイトルや参加者名で
 | 社内フォルダID含む | 🏢 社内 | 議事録テンプレート（グリーン） |
 | 社外フォルダID含む | 🤝 社外 | 議事録テンプレート（アンバー） |
 | 講話録音フォルダID含む | 🎤 講話録音 | 講話ナレッジテンプレート（インジゴ） |
-| どれも含まない | スキップ（未振り分け）| — |
+| 面接フォルダID含む | 面接 = **HTML化対象外**（生成・index追加せずスキップ・報告不要） | — |
+| どれも含まない | スキップ（**未振り分け＝要対応**・報告に明示） | — |
 
 ### STEP 3: 議事録の内容を取得する
 
