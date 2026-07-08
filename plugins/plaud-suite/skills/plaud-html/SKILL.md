@@ -123,6 +123,11 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 - **Claude Desktopのプレビューパネルは独自のwebviewキャッシュを持ち、ブラウザのキャッシュクリアやreloadでも更新されないことがある。** 「見た目が変わってない」と言われても、ファイルは直っている場合がある。プレビュー表示を絶対視しない。
 - **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。
 - CSSの見た目修正は**共通ファイル(enhance.css)の1ルール**に集約する。**ページごとのインライン小細工（`style=... !important` 等）は付けない**（enhance.cssが正・全ページに効く）。
+- **共通CSS(style.css/enhance.css)を変えたら、参照する全HTMLの `?v=N` を上げてキャッシュバストする**（Desktop/ブラウザがCSSをキャッシュし「直ってない」の主因になる）。UTF-8安全な一括置換: `Get-ChildItem *.html | %{ $t=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); [IO.File]::WriteAllText($_.FullName, ($t -replace 'enhance\.css\?v=\d+','enhance.css?v=N'), (New-Object Text.UTF8Encoding($false))) }`。テンプレは現在 `enhance.css?v=2`
+
+### モバイル(SP)UI（2026-07-08対応・style.css / index.html）
+- **フィルターバー**: カテゴリは横スクロールchip、3ナビリンク（ナレッジベース/インデックス/決定事項）は**ハンバーガー(☰)→ドロップダウン**（`.hamburger-btn`/`.nav-links.open`・`toggleNav()`）。768px以下で発動。検索は全幅。以前は縦バー化で全画面占有していた
+- **詳細ページのFAB**: `@media(max-width:680px)` で `.fab-stack` を左→**右下**、`.to-top` を左下へ分離（本文への被り解消）。検証はローカルサーバー+preview_evalの getBoundingClientRect で実施
 
 ### チャート内エンティティの色（対応済み）
 - enhance.js は `<meta name="entities">` の語を本文中で自動 `<span class="ent">` 化する（親が flex の直下は除外するが、`<p>`直下は対象）。暗い背景の `.chart-container` 内では既定色 `--accent-strong`(#92400e) が埋もれる。→ **enhance.css の `.chart-container .ent{ color:var(--accent-300) }`**（bold と同色）で解決済み。ページ側の追加ルールは不要。
@@ -774,7 +779,7 @@ JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.s
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
-  <link rel="stylesheet" href="enhance.css">
+  <link rel="stylesheet" href="enhance.css?v=2">
   <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 :root{
