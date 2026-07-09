@@ -24,6 +24,12 @@
       "source": "./plugins/design-suite",
       "description": "ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド設計の総合デザインスキル集。",
       "category": "design"
+    },
+    {
+      "name": "personal-suite",
+      "source": "./plugins/personal-suite",
+      "description": "個人の思考整理・情報保護・日常運用のための汎用スキル集(俯瞰レビュー/配布前チェック/外部スキル監査/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ)。",
+      "category": "productivity"
     }
   ]
 }

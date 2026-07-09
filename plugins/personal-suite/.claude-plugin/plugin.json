@@ -1,0 +1,9 @@
+{
+  "name": "personal-suite",
+  "description": "個人の思考整理・情報保護・日常運用のための汎用スキル集(7スキル): 俯瞰レビュー(take-a-step-back)、配布前チェック(distribution-check)、外部スキル監査(skill-audit)、カレンダー同期(cal-sync)、メール下書き(mail-draft)、ブレインダンプ整理(brain-dump)、セッション引き継ぎ(handoff)。",
+  "version": "1.0.0",
+  "author": {
+    "name": "y-ino",
+    "email": "y-ino@farman.jp"
+  }
+}

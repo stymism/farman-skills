@@ -9,8 +9,9 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | **plaud-suite** | Plaud録音の閲覧/要約/検索/書き起こし/フォローアップ/外部連携/HTMLサマリー(8スキル) | Plaud MCP同梱。初回に `mcp__plaud__login` で対話ログイン |
 | **farman-tools** | farman.jp WordPress「お知らせ」一括投稿(1スキル) | farman.jpへログイン済みのブラウザ接続(Chrome拡張等) |
 | **design-suite** | ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド(8スキル) | ロゴ・アイコン生成のみ環境変数 `GEMINI_API_KEY`(任意) |
+| **personal-suite** | 俯瞰レビュー/配布前チェック/外部スキル監査/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ(7スキル) | cal-sync・mail-draftはGmail/Googleカレンダーのコネクタ連携が必要 |
 
-合計17スキル。
+合計24スキル。
 
 ## 使い方
 
@@ -20,6 +21,7 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 /plugin install plaud-suite@farman-skills
 /plugin install farman-tools@farman-skills
 /plugin install design-suite@farman-skills
+/plugin install personal-suite@farman-skills
 ```
 
 ### クラウド Cowork
