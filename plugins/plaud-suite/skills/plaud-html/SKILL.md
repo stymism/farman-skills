@@ -963,10 +963,22 @@ function updateProgress(){const c=document.querySelectorAll('#actionList input:c
 document.querySelectorAll('#actionList input').forEach(cb=>cb.addEventListener('change',updateProgress));
 function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#fef3c7'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';const s=6+Math.random()*10;p.style.cssText=`left:${Math.random()*100}vw;width:${s}px;height:${s}px;background:${cs[Math.floor(Math.random()*cs.length)]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s,${.8+Math.random()}s;animation-delay:${Math.random()*.5}s;`;document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());}}
 </script>
-<script src="edit-mode.js?v=10"></script>
-<script src="enhance.js?v=4"></script>
+<script src="edit-mode.js?v=13"></script>
+<script src="enhance.js?v=6"></script>
 </body></html>
 ```
+
+#### ▼ 客先送付用ダウンロード（📥）はスタンドアローンでクリーンにする（edit-mode.js・2026-07-14〜）
+
+`edit-mode.js` の **📥 ダウンロード**（`downloadFile()` = 取引先送付用・back-linkなし版）は、`document.documentElement` を**クローンしてから**次を除去した単体HTMLを出力する（`buildHTML(removeBackLink=true)` 内で実施。ライブDOM・サイト表示・「ファイルを更新」＝`saveToFile()` は不変）：
+
+- `.breadcrumb`（ホーム›社外›パンくず）・`.kw-bar`（キーワードチップ） … サイト内ナビは送付版に不要
+- `.mini-bar` / `.to-top` / `.tip-pop` / `.fab-stack` / `.toc-backdrop` / `.toc-sheet` … enhance.js が実行時に差し込むフッターUI（単体では `enhance.css` が読めず崩れる）
+- `.anchor-link`（見出しの🔗）… enhance.js 差込
+- `script[src*="enhance.js"]` / `link[href*="enhance.css"]` … 単体では解決できない外部依存
+- `#tocList` は `innerHTML=''` にリセット（ページ内 inline script が開いたとき再生成するため。重複防止）
+
+**理由:** 保存されるのはライブDOMのため、enhance.js の差込物や authored なサイト内ナビがそのまま入り、`enhance.css` を読めない単体ファイルでフッター等が崩れていた。送付版は自己完結で崩れないことを最優先する。**この仕様を変える場合も、`saveToFile()`（ソース置換用・enhance.js等を保持）まで巻き込まないこと。** `edit-mode.js` を更新したら全HTMLの `edit-mode.js?v=N` をインクリメント（現行 **v=13**）。
 
 #### ▼ 強化レイヤー（enhance.css / enhance.js）— 全ページ共通、デザインは変えず機能を上乗せ
 
@@ -1373,7 +1385,7 @@ gh auth login
 - **HTMLのギミック省略は禁止**。参照ファイルとしてすでに作成済みの高品質ファイル（`2026-06-14_uematsu-mtg.html` 等）をRead toolで読み込んで参考にしてよい
 - **`.back-link` には必ず `white-space:nowrap;` を含めること**（省略すると「一覧に戻る」テキストが折り返す）
 - **チャートは上記14種から選ぶ。プレースホルダーや空のチャートは禁止。必ず実際のMTG内容を反映した具体的な数値・ラベルを入れること**
-- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js` を更新したらHTML側の `enhance.js?v=N` を必ずインクリメントする（キャッシュ対策。現行 `v=4`）。enhance.js は読書ナビ・知能化に加え、**既読マーク（`plaud-read-*`）・ダークモード・モバイル目次シート・Markdown/PDF出力・チャートのホバー強調**（FABクラスター）も提供する
+- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js` を更新したらHTML側の `enhance.js?v=N` を必ずインクリメントする（キャッシュ対策。現行 `enhance.js?v=6` / `edit-mode.js?v=13`）。enhance.js は読書ナビ・知能化に加え、**既読マーク（`plaud-read-*`）・ダークモード・モバイル目次シート・Markdown/PDF出力・チャートのホバー強調**（FABクラスター）も提供する。**客先送付用の 📥 ダウンロード（edit-mode.js）は、これら差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（上記「客先送付用ダウンロード」節参照）
 
 ### 別PC対応での注意
 - **初回セットアップが必須**: スキル初回実行前に `.\setup-plaud.ps1` を実行してください
