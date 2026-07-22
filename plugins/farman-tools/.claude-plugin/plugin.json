@@ -1,7 +1,7 @@
 {
   "name": "farman-tools",
-  "description": "farman.jp(自社サイト)のWordPress「お知らせ」へプレスリリース・メディア掲載・登壇情報等を既存書式に合わせて一括投稿。認証はブラウザのログインセッション(X-WP-Nonce)経由のため、実行環境にfarman.jpへログイン済みのブラウザ接続が必要。",
-  "version": "1.0.0",
+  "description": "ファーマン社内ツールの改修・運用スキル集。(1)farman-news-post: farman.jp WordPress「お知らせ」へ既存書式で一括投稿(ブラウザのX-WP-Nonceセッション経由)。(2)farman-estimate-maintain: FARMAN見積システム(GAS Web App・コード.js＋index.html・自社HPにiframe埋め込み)の改修・再デプロイ手順とハマりどころ。",
+  "version": "1.1.0",
   "author": {
     "name": "y-ino",
     "email": "y-ino@farman.jp"

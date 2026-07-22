@@ -16,7 +16,7 @@
     {
       "name": "farman-tools",
       "source": "./plugins/farman-tools",
-      "description": "farman.jp(自社サイト)のWordPress「お知らせ」へ記事を一括投稿するスキル。",
+      "description": "ファーマン社内ツールの改修・運用スキル集。farman.jp WordPress「お知らせ」一括投稿と、FARMAN見積システム(GAS Web App)の改修・再デプロイ手順。",
       "category": "productivity"
     },
     {
