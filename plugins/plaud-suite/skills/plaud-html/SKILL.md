@@ -89,10 +89,11 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 
 ### Plaud MCP のフォルダフィルタリング非対応（毎回チェック → 対応され次第RESTを廃止）
 
-**2026-07-06 実測時点の状況：**
+**2026-07-28 再実測（2026-07-06 から変化なし）：**
 - `list_files` のスキーマに `folder_id` パラメータは**存在しない**（入力は `query`/`date_from`/`date_to`/`page`/`page_size` のみ）
 - `list_files`・`get_file` のレスポンスにもフォルダ情報（`filetag_id_list` 等）は**含まれない**（各件 `id`/`name`/`created_at`/`serial_number`/`start_at`/`duration` ＋ get_fileは `presigned_url`/`source_list`/`note_list`）
 - MCPの認証はOAuth（`login` ツール）で自前処理されるため、**トークンが必要なのはフォルダ判定のRESTだけ**
+- `page_size` は**下限10**。`page_size=5` 等を渡すと `Input should be greater than or equal to 10` で失敗する
 
 **→ 現状はフォルダ判定のみ Plaud REST API で `filetag_id_list` を参照する（下記 STEP 1 参照）。ただし毎回 STEP 1-0 のチェックを先に行うこと：**
 
@@ -100,6 +101,24 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 1. `mcp__plaud__list_files`（プラグイン環境では `mcp__plugin_plaud-suite_plaud__list_files`。存在する方を使う）を1ページ（page_size=10）呼び、レスポンスの各アイテムに `filetag_id_list`・`filetag`・`folder` 等のフォルダ情報フィールドが**含まれるか**を確認する（あわせて `list_files` スキーマに `folder_id` パラメータが追加されていないかも見る）
 2. **含まれる場合（対応済み）**: フォルダ判定はMCPレスポンスの値で行い、REST API呼び出しとトークン自動リフレッシュを**スキップ**する。そのうえで、本SKILL.mdからREST依存部分（トークンリフレッシュ・REST判定）を更新・削除し、README.md に変更履歴を追記して、「Plaudトークンが不要になった」ことをユーザーに報告する（`plaud-config.json` の `plaud.api_token`/`email`/`password` は不要になる。Cloudflare設定は引き続き必要）
 3. **含まれない場合（未対応）**: 従来どおりトークン自動チェック→REST APIでのフォルダ判定に進む。完了報告に記載は不要（チェック自体は静かに行う）
+
+### MCPが `Not authenticated` を返すとき（2026-07-28 追記）
+
+Plaud MCPの認証は**RESTトークン（`plaud-config.json`）とは完全に別系統のOAuth**。設定ファイルを直しても復旧しないし、`refresh-plaud-token.ps1` も無関係。`list_files`/`get_note`/`get_current_user` が揃って `Not authenticated. Please login first.` を返したらこれ。
+
+1. **`mcp__plaud__login` を呼ぶ**（ブラウザが開きユーザーがログイン）→ `get_current_user` で `y-ino@farman.jp` が返れば復旧
+2. 切り分け: 他のMCP（Asana `get_me` 等）が応答するならMCP基盤自体は正常で、Plaudの認証だけの問題
+3. **ログインできない／ユーザー不在で進めたい場合のフォールバック（実績あり）**: 議事録本文は `get_note` を使わず REST で取れる。
+   ```
+   GET {api_base}/file/detail/{file_id}   （Authorization: {api_token}）
+     → data.content_list[] から data_type == 'auto_sum_note' を選ぶ
+     → その data_link（S3署名付きURL・有効5分）を GET すると AI要約Markdownが返る
+   ```
+   ⚠️ `data_link` の実体は `ai_content.md.gz` だが **`Invoke-WebRequest` が gzip を自動解凍する**ため、`GzipStream` に通すと `The magic number in GZip header is not correct` で落ちる。**先頭2バイトが `0x1F 0x8B` の時だけ解凍し、それ以外はそのままUTF-8デコードする**分岐を入れること。
+
+### ⚠️ `get_file` はトランスクリプト全文を返す（呼ぶな・2026-07-28 追記）
+`get_file` のレスポンスは**20万文字規模**（実測206,078文字）になり、トークン上限を超えてツール結果がファイルに退避される。**duration等のメタ情報のために `get_file` を呼んではいけない。**
+→ **duration・filename・start_time は STEP 1 の REST 一覧（`/file/simple/web`）に全て含まれている**ので、そこから取る（`duration` はミリ秒）。
 
 ### get_note の 500 エラー対応（リトライロジック）
 録音後にPlaud側でAI要約を非同期生成するため、アップロード直後は `get_note` が 500 を返すことがある。
@@ -124,6 +143,27 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 - **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。
 - CSSの見た目修正は**共通ファイル(enhance.css)の1ルール**に集約する。**ページごとのインライン小細工（`style=... !important` 等）は付けない**（enhance.cssが正・全ページに効く）。
 - **共通CSS(style.css/enhance.css)を変えたら、参照する全HTMLの `?v=N` を上げてキャッシュバストする**（Desktop/ブラウザがCSSをキャッシュし「直ってない」の主因になる）。UTF-8安全な一括置換: `Get-ChildItem *.html | %{ $t=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); [IO.File]::WriteAllText($_.FullName, ($t -replace 'enhance\.css\?v=\d+','enhance.css?v=N'), (New-Object Text.UTF8Encoding($false))) }`。テンプレは現在 `enhance.css?v=2`
+
+### ⚠️ ブラウザペイン非表示だと「計測」が全部ウソになる（2026-07-28 追記・最重要）
+
+preview_start でサーバーを立ててもブラウザペインが画面に表示されていないと、そのタブは `document.visibilityState === 'hidden'` かつ**ビューポートが 0×0**（`innerWidth`/`clientWidth` が `0`）になる。この状態では次が全て成立しない：
+
+| 現象 | 何が起きるか |
+|------|------------|
+| **IntersectionObserver が発火しない** | `.reveal` は `opacity:0` のまま、チャートの `data-width`/KPIカウントアップも動かない。「アニメーションが壊れている」と誤診する |
+| **CSS transition が進まない** | `style.width='88%'` を入れても `getBoundingClientRect().width` はpadding分（例:12px）のまま。**計算値ではなく実測値を見ると必ず失敗する** |
+| **横スクロール判定が常に真** | `document.documentElement.scrollWidth > window.innerWidth` は `X > 0` になるので**必ず true**。全要素が「はみ出し」と出る（実例:403要素の偽陽性） |
+| **screenshot が撮れない** | `Screenshot timed out: the Browser pane is not displayed` |
+
+**対処：**
+1. まず `({innerWidth: window.innerWidth, visibility: document.visibilityState})` を撃って**計測が有効な状態か確かめてから**測る。`innerWidth === 0` なら実測系（`getBoundingClientRect`・横スクロール判定・screenshot）は**判断材料にしない**
+2. 非表示のままでも、**DOM構造・属性・スクリプト実行結果は正しく取れる**。要素数・`data-*`・`style.width` の代入結果・`textContent`・コンソールエラーで検証する
+3. アニメーションを確かめたいときは、IntersectionObserverのコールバック本体と同じ処理を `javascript_tool` で**手動実行**し、`style.width` や `textContent` が期待値になるかを見る（`getBoundingClientRect` ではなく代入値を見る）
+4. **既存の完成済みページ（例: `2026-07-14_philanthropy-mtg.html`）で同じ計測をして比べる。** 同じ結果なら環境要因、違えば生成物のバグ — この切り分けが一番速い
+
+### ローカル静的サーバーはHTMLをキャッシュする（2026-07-28 追記）
+- `python -m http.server` は `Last-Modified`/`ETag` を返すため、**HTMLを再生成しても同じURLへ再ナビゲートすると旧版が返る**。「修正したのに直っていない」の主因。
+- **再生成後の再検証は必ずクエリでキャッシュバストする**: `http://localhost:8199/foo.html?cb=2`（数字を毎回変える）。CSSの `?v=N` と違い、こちらは**検証時だけの一時的な回避**でファイルには入れない。
 
 ### モバイル(SP)UI（2026-07-08対応・style.css / index.html）
 - **フィルターバー**: カテゴリは横スクロールchip、3ナビリンク（ナレッジベース/インデックス/決定事項）は**ハンバーガー(☰)→ドロップダウン**（`.hamburger-btn`/`.nav-links.open`・`toggleNav()`）。768px以下で発動。検索は全幅。以前は縦バー化で全画面占有していた
@@ -359,7 +399,8 @@ STEP 1 の `filetag_id_list` の結果を使う。タイトルや参加者名で
 
 未HTML化ファイルそれぞれについて：
 - `get_note` でAI要約（action_items、summary、key_topics）を取得
-- `get_file` でメタ情報（duration等）を取得
+- メタ情報（duration・filename・start_time）は **STEP 1 の REST 一覧（`/file/simple/web`）から取る**。**`get_file` は呼ばない**（トランスクリプト全文＝20万文字規模が返りトークン上限を超える。上記「既知の制約」参照）
+- MCPが `Not authenticated` の場合は `mcp__plaud__login`、それも不可なら REST の `/file/detail/{id}` フォールバック（上記「既知の制約」参照）
 
 **⚠️ 500エラー時のリトライ：**
 - `get_note` が 500 を返した場合、即座に同じ呼び出しを最大3回まで再試行する
@@ -747,6 +788,32 @@ JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.s
 - **必ず `chart-insight`（インサイト注釈）を1つ添える**（「一番言いたい数字」を言語化。上記テンプレ参照）
 - 単位・凡例・出典を明記。色は意味で割り当て（達成=緑 / 注意=赤 / 中立=アンバー）
 - 数値は等幅（enhance.cssで全体に`tabular-nums`適用済み）
+- **タイムライン(`.tl-item`)の子要素の順序は `tl-dot → tl-time → tl-title → tl-desc → tl-status` で固定。** 順序を崩すと見出しと本文が入れ替わって表示される（2026-07-28に実際に発生）
+
+**✅ 生成後の自己点検（必須・手書きチェックでは漏れる）**
+
+チャート枚数が増えると「1枚だけ `chart-insight` を付け忘れる」「1項目だけ要素順が違う」が必ず起きる。**目視ではなくDOMで機械的に点検する**（ローカルサーバー＋`javascript_tool`。再生成後は `?cb=N` でキャッシュバストすること）：
+
+```javascript
+({
+  // chart-insight が無いチャートを列挙 → 空配列でなければNG
+  chartsWithoutInsight: Array.from(document.querySelectorAll('.chart-container'))
+    .filter(c => !c.querySelector('.chart-insight')).map(c => c.id || '(no-id)'),
+  // タイムラインの要素順 → 全て 'dot>time>title>desc>status' であること
+  tlOrder: Array.from(document.querySelectorAll('.tl-item')).map(it =>
+    Array.from(it.children).map(c => c.className.replace('tl-','').split(' ')[0]).join('>')),
+  // 必須パーツの員数チェック
+  sections: document.querySelectorAll('.section-h2').length,
+  tocItems: document.querySelectorAll('#tocList .toc-item').length,      // sections と一致すること
+  decisions: document.querySelectorAll('.decision-box').length,          // 原則 sections と同数以上
+  particles: document.querySelectorAll('.hero-particle').length,         // 必ず 5
+  aiItems: document.querySelectorAll('.ai-list li').length,              // 4〜6
+  todos: document.querySelectorAll('#actionList .action-item').length,   // total= と一致すること
+  backLink: getComputedStyle(document.querySelector('.back-link')).whiteSpace, // 'nowrap'
+  relatedHrefs: Array.from(document.querySelectorAll('.related-card')).map(a => a.getAttribute('href'))
+})
+```
+`relatedHrefs` は**実ファイルの存在をPowerShellの `Test-Path` で必ず確認**する（存在しない過去MTGへリンクする事故を防ぐ）。
 
 **チャート選択ガイド:**
 
