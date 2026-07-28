@@ -101,11 +101,21 @@ git -C $repo push origin main
 
 ### STEP 7: 反映方法をユーザーに伝える
 
-push しただけでは、そのPCで動いているスキルは古いまま。完了報告に必ず含める：
+push しただけでは、そのPCで動いているスキルは古いまま。
 
-- **各PC**: `claude plugin update <plugin>@farman-skills` → Claude Code再起動
-- **クラウドCowork**: プラグインUIから更新
-- 実行中の複製の位置: `~/.claude-code/plugins/marketplaces/farman-skills/`（直接編集しないこと）
+> **⚠️ 4プラグインは1つのgitクローンに同居している。** `~/.claude-code/plugins/marketplaces/farman-skills/` が丸ごとリポジトリのクローンで、その中に `plugins/plaud-suite` `plugins/design-suite` `plugins/farman-tools` `plugins/personal-suite` が入っている。**プラグインごとに更新する必要はなく、`git pull` 1回で全プラグインが同時に更新される。**
+
+**ローカルPC（Claude が実行できる。ユーザーにコマンドを打たせない）:**
+```powershell
+$inst = "$env:USERPROFILE\.claude-code\plugins\marketplaces\farman-skills"
+git -C $inst status --porcelain     # 空でなければ実行時コピーが直接編集されている（下記参照）
+git -C $inst pull --ff-only origin main
+```
+※ `claude plugin update <plugin>@farman-skills` でも同じ結果になるが、上記のpullで全プラグインまとめて済む。**取り込み後は Claude Code の再起動が必要。**
+
+**クラウドCowork:** 別インストールなので**自動では反映されない**。Cowork側のプラグインUIから更新する（Claudeからは操作・確認できないため、ユーザーに依頼する）。
+
+> **⚠️ 実行時コピーが直接編集されていることがある。** pull前に `git -C $inst status --porcelain` を必ず確認する。差分があれば**捨てる前に正本と突き合わせ**、正本に無い変更なら救出してから pull する（2026-07-28に実際に発生。幸い正本に同内容が入っていたため損失なし）。
 
 ## 完了報告に含めるもの
 
