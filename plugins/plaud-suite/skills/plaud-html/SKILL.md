@@ -155,8 +155,15 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 | **横スクロール判定が常に真** | `document.documentElement.scrollWidth > window.innerWidth` は `X > 0` になるので**必ず true**。全要素が「はみ出し」と出る（実例:403要素の偽陽性） |
 | **screenshot が撮れない** | `Screenshot timed out: the Browser pane is not displayed` |
 
+**⚠️ 判定条件は2つあり、別物（2026-07-28 実測で訂正）:** `innerWidth` だけ見るのは**不十分**。ペインを表示すると `innerWidth` は 1280 等になるが、`visibilityState` は `hidden` のままのことがあり、その状態では**スクロールしても `scrollY` が 0 のまま＝IntersectionObserverが発火しない**。
+
+| 判定式 | これが真なら使えるもの |
+|---|---|
+| `window.innerWidth > 0` | **レイアウト計測**（`getBoundingClientRect` の幅・横スクロール判定） |
+| `document.visibilityState === 'visible'` | **IntersectionObserver・CSS transition・screenshot** |
+
 **対処：**
-1. まず `({innerWidth: window.innerWidth, visibility: document.visibilityState})` を撃って**計測が有効な状態か確かめてから**測る。`innerWidth === 0` なら実測系（`getBoundingClientRect`・横スクロール判定・screenshot）は**判断材料にしない**
+1. まず `({innerWidth: window.innerWidth, visibility: document.visibilityState})` を撃つ。`innerWidth === 0` ならレイアウト計測を捨て、`visibility !== 'visible'` ならアニメーション検証を捨てる（**両方を別々に判断する**）
 2. 非表示のままでも、**DOM構造・属性・スクリプト実行結果は正しく取れる**。要素数・`data-*`・`style.width` の代入結果・`textContent`・コンソールエラーで検証する
 3. アニメーションを確かめたいときは、IntersectionObserverのコールバック本体と同じ処理を `javascript_tool` で**手動実行**し、`style.width` や `textContent` が期待値になるかを見る（`getBoundingClientRect` ではなく代入値を見る）
 4. **既存の完成済みページ（例: `2026-07-14_philanthropy-mtg.html`）で同じ計測をして比べる。** 同じ結果なら環境要因、違えば生成物のバグ — この切り分けが一番速い

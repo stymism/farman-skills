@@ -79,6 +79,8 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 |---|---|
 | 2026-07-28 | README.md を新規作成（SKILL.md が参照していたが未作成だったため） |
 | 2026-07-28 | ブラウザペイン非表示時の計測が無効になる罠（`visibilityState:hidden`・viewport 0×0 でIntersectionObserver不発火・横スクロール判定が常に真）を追記 |
+| 2026-07-28 | 上記の判定条件を訂正。`innerWidth > 0`（レイアウト計測の可否）と `visibilityState === 'visible'`（IntersectionObserver/transition/screenshotの可否）は**別条件**で、前者だけでは不十分と実測で判明 |
+| 2026-07-28 | チャートのインサイト欠落を全生成物で機械監査し、07-10 ファーマン全体MTG・07-13 小宮山さんMTG の2件を修正（いずれもタイムラインチャート） |
 | 2026-07-28 | ローカル静的サーバーのHTMLキャッシュ対策（再検証は `?cb=N`）を追記 |
 | 2026-07-28 | MCP `Not authenticated` 時の `login` / REST `/file/detail/{id}` フォールバック手順を追記（gzip自動解凍の分岐を含む） |
 | 2026-07-28 | `get_file` の使用を禁止（20万文字のトランスクリプトが返るため）。STEP 3 の矛盾記述も修正 |
