@@ -35,6 +35,21 @@ const P = (cat, msg) => problems.push(`[${cat}] ${msg}`);
 const read = f => fs.readFileSync(path.join(DIR, f), 'utf8');
 const exists = f => fs.existsSync(path.join(DIR, f));
 
+/**
+ * ⚠️ 誤検出を防ぐためのヘルパー（2026-07-28: 空白の有無で17件の偽陽性を出した反省）
+ *  - hasClass : class="a b c" の複数クラスに耐える
+ *  - countClass : 同上でカウント
+ *  - ruleHas  : 特定のCSSルールの中に、空白ゆらぎを無視してプロパティがあるか見る
+ */
+const hasClass   = (t, c) => new RegExp(`class="[^"]*\\b${c}\\b[^"]*"`).test(t);
+const countClass = (t, c) => (t.match(new RegExp(`class="[^"]*\\b${c}\\b[^"]*"`, 'g')) || []).length;
+const ruleHas = (t, selector, prop, value) => {
+  const m = t.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{[^}]*\\}`));
+  if (!m) return null;                                   // ルール自体が無い
+  const norm = m[0].replace(/\s+/g, '');                  // 空白を全部落として比較する
+  return norm.includes(`${prop}:${value}`);
+};
+
 const allHtml = fs.readdirSync(DIR).filter(f => f.endsWith('.html'));
 const details = allHtml.filter(f => !AUX.has(f));
 const strict = TARGETS.length ? TARGETS.map(t => path.basename(t)) : (ALL_STRICT ? details : []);
@@ -113,24 +128,28 @@ for (const f of details) {
   if (!isStrict) continue;
 
   // ---- 以下は今回生成した（=指定された）ページのみ厳密に見る ----
-  const charts   = (t.match(/class="chart-container/g) || []).length;
-  const insights = (t.match(/class="chart-insight"/g) || []).length;
+  const charts   = countClass(t, 'chart-container');
+  const insights = countClass(t, 'chart-insight');
   if (charts === 0) P('CHART', `${f}: チャートが1つも無い`);
   if (charts !== insights)
     P('CHART', `${f}: chart-container=${charts} に対し chart-insight=${insights}（全チャートに1つ必要）`);
 
-  if ((t.match(/class="hero-particle"/g) || []).length !== 5)
-    P('HTML', `${f}: hero-particle が5個でない`);
-  if (!t.includes('white-space:nowrap'))
-    P('HTML', `${f}: .back-link の white-space:nowrap が無い（「一覧に戻る」が折り返す）`);
+  const particles = countClass(t, 'hero-particle');
+  if (particles !== 5) P('HTML', `${f}: hero-particle が${particles}個（5個必要）`);
+
+  // ⚠️ 空白ゆらぎに注意（`white-space: nowrap` と `white-space:nowrap` の両方が実在する）
+  const nowrap = ruleHas(t, '.back-link', 'white-space', 'nowrap');
+  if (nowrap === null) P('HTML', `${f}: .back-link のCSSルールが無い`);
+  else if (!nowrap) P('HTML', `${f}: .back-link に white-space:nowrap が無い（「一覧に戻る」が折り返す）`);
+
   if (!/<meta name="entities"/.test(t)) P('HTML', `${f}: meta entities が無い`);
   if (!t.includes('id="scroll-progress"')) P('HTML', `${f}: scroll-progress が無い`);
   if (!t.includes('id="tocList"')) P('HTML', `${f}: floating-toc が無い`);
   // 講話録音(kowa)は設計上 ToDo/Asana/決定事項/AIサジェストを持たない → 該当チェックを免除する
   const isKowa = /badge-header-kowa/.test(t) || /<meta name="kowa-themes"/.test(t);
   if (!isKowa) {
-    if (!/class="decision-box/.test(t)) P('HTML', `${f}: decision-box が1つも無い`);
-    if (!/class="ai-list"/.test(t)) P('HTML', `${f}: AIサジェストが無い`);
+    if (!hasClass(t, 'decision-box')) P('HTML', `${f}: decision-box が1つも無い`);
+    if (!hasClass(t, 'ai-list')) P('HTML', `${f}: AIサジェストが無い`);
   } else {
     if (!/<meta name="kowa-themes"/.test(t)) P('HTML', `${f}: 講話ページだが kowa-themes メタが無い`);
   }
@@ -142,8 +161,8 @@ for (const f of details) {
 
   // ToDo件数の4点一致（項目数 / const total / 進捗ラベル / indexカード表記）
   if (!isKowa) {
-    const todos = (t.match(/class="action-item"/g) || []).length;
-    const total = Number((t.match(/const total=(\d+);/) || [, -1])[1]);
+    const todos = countClass(t, 'action-item');
+    const total = Number((t.match(/const\s+total\s*=\s*(\d+)/) || [, -1])[1]);
     const label = Number((t.match(/id="progressCount">0 \/ (\d+) 完了/) || [, -1])[1]);
     if (total !== -1 && todos !== total) P('TODO', `${f}: ToDo項目(${todos}) != const total(${total})`);
     if (label !== -1 && todos !== label) P('TODO', `${f}: ToDo項目(${todos}) != 進捗ラベル(${label})`);
@@ -170,9 +189,16 @@ for (const f of details) {
 
   // 横断ページへの反映
   const stem = f.replace(/\.html$/, '');
-  for (const aux of ['decisions.html', 'entity-index.html', 'search-index.json']) {
+  for (const aux of ['entity-index.html', 'search-index.json']) {   // 全ページを集約する
     if (!exists(aux)) { P('AUX', `${aux} が無い（gen-aux.js 未実行）`); continue; }
     if (!read(aux).includes(stem)) P('AUX', `${aux} に ${stem} が含まれていない（gen-aux.js を再実行）`);
+  }
+  // decisions.html は decision-box を集約するページ。
+  // ⚠️ decision-box を持たないページ（講話・旧テンプレ）は載らないのが正しい（偽陽性を出さない）
+  if (hasClass(t, 'decision-box')) {
+    if (!exists('decisions.html')) P('AUX', 'decisions.html が無い（gen-aux.js 未実行）');
+    else if (!read('decisions.html').includes(stem))
+      P('AUX', `decisions.html に ${stem} が含まれていない（gen-aux.js を再実行）`);
   }
 }
 
