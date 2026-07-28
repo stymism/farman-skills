@@ -1300,6 +1300,33 @@ node "$skillDir\gen-aux.js" (($cfg.paths.work_dir) -replace '~', $env:USERPROFIL
 > **依存：** index.html のカード `data-text` を読むため、**STEP 5（index更新）の後に実行**すること。新規HTMLが0件の回はスキップ可。
 > **index.html 側の前提：** フィルターバーに `entity-index.html`／`decisions.html` へのリンク、末尾に `search-index.json` を読み込む全文検索＆`plaud-read-*` 既読バッジのスクリプトが入っている（導入済み）。
 
+### STEP 5.7: 自己監査を実行する（必須・不合格ならデプロイ禁止）
+
+**目視チェックは必ず漏れる。** 生成物が増えるほど「1ページだけ `chart-insight` を付け忘れる」「1項目だけ要素順が違う」が起きる（2026-07-28に実際に3件発生し、そのうち2件は目視では見逃していた）。**同梱の `audit.js` で機械的に検査する。**
+
+```powershell
+$cfg = Get-Content "$env:USERPROFILE\.plaud\plaud-config.json" -Raw | ConvertFrom-Json
+$workDir = $cfg.paths.work_dir -replace '~', $env:USERPROFILE
+$cfgHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { "$env:USERPROFILE\.claude" }
+$skillDir = @("$cfgHome\plugins\marketplaces\farman-skills\plugins\plaud-suite\skills\plaud-html","$cfgHome\skills\plaud-html") | Where-Object { Test-Path (Join-Path $_ 'audit.js') } | Select-Object -First 1
+
+# 今回生成したページを列挙して厳密検査する（← 通常はこれ）
+node "$skillDir\audit.js" $workDir 2026-07-27_foo-mtg.html 2026-07-17_bar.html
+```
+
+| 呼び方 | 何を見るか | 使いどころ |
+|---|---|---|
+| `audit.js <work_dir> <対象.html…>` | 指定ページを**厳密**検査＋全件の構造/リンク/アセット | **毎回これ。** 今回生成した全ファイルを列挙する |
+| `audit.js <work_dir>` | 全件の構造・リンク・アセットのみ | index更新だけした回 |
+| `audit.js <work_dir> --all` | 全件を厳密検査 | 棚卸し。旧テンプレのページが大量に出るので通常は使わない |
+
+**検査内容:** index のカード数と `data-count`×4・`filter-count` の整合／カードのリンク先実在／**孤立HTML（indexに載っていないページ）**／関連MTGリンクの実在／**チャート数と `chart-insight` 数の一致**／hero-particle 5個／`white-space:nowrap`／`meta entities` の有無と**1文字語の混入**／ToDo件数の4点一致（項目数・`const total`・進捗ラベル・**indexカードの「ToDo N件」**）／section id 重複／**タイムラインの要素順**／横断ページ3種への反映。
+
+- **アセットのバージョンはハードコードしていない。** 全ページの最頻値を正とし、そこから外れたページだけを報告する（`enhance.css?v=N` を上げても監査は壊れない）。
+- **講話録音(kowa)は自動判定して免除される**（ToDo・decision-box・AIサジェストを持たない設計のため）。
+- 問題があれば **exit code 1** を返す。**0件になるまで STEP 7 のデプロイに進まない。**
+- 監査が誤検出した場合は、ページを歪めるのではなく **`audit.js` の側を直す**（そのうえで STEP 5.7 の説明も更新する）。
+
 ### STEP 6: ToDoをAsanaに追加する（社内・社外 のみ）
 
 > **⚠️ 講話録音（kowa）はAsana連携しない。** STEP 6は社内・社外ファイルのみ対象。
@@ -1348,6 +1375,8 @@ node "$skillDir\gen-aux.js" (($cfg.paths.work_dir) -replace '~', $env:USERPROFIL
 | **2名以上** | 各担当者のプロジェクト ＋ 「複数人」プロジェクト |
 
 ### STEP 7: Cloudflare Pages へデプロイする（Git連携 — pushで自動公開）
+
+> **⛔ 前提: STEP 5.7 の `audit.js` が 0件（exit 0）であること。** 1件でも残っている状態でデプロイしない。公開後に直すと、サイトrepoに無駄な差分コミットが増える。
 
 デプロイは**サイトrepo `stymism/farman-mtg-site`（非公開）への git push**で行う。Cloudflare Pages がGit連携で自動ビルド・公開する。旧方式（`wrangler pages deploy` 直接アップロード）は**廃止** — Git連携プロジェクトはwranglerからの直接アップロードを受け付けない。
 
@@ -1415,7 +1444,8 @@ if (git -C $repoDir status --porcelain) {
 4. 講話録音の場合: 付与したテーマタグ一覧、kowa-knowledge.html 更新有無
 5. AsanaタスクのURL（何件追加したか）※社内・社外のみ
 6. 横断ページの再生成（STEP 5.6。`gen-aux.js` 実行 → entity-index / decisions / search-index.json）
-7. デプロイ結果（STEP 7。push の commit と URL。「push→自動公開・1〜2分」の旨）
+7. **自己監査の結果（STEP 5.7。`audit.js` の検出件数。0件であること。途中で検出・修正した項目があれば正直に列挙する）**
+8. デプロイ結果（STEP 7。push の commit と URL。「push→自動公開・1〜2分」の旨）
 
 ---
 

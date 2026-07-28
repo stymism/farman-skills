@@ -58,6 +58,7 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 | `SKILL.md` | 手順の正本。実行時に読まれる |
 | `README.md` | このファイル。概要と変更履歴 |
 | `gen-aux.js` | 横断ページ生成（`search-index.json` / `entity-index.html` / `decisions.html`） |
+| `audit.js` | **生成物の自己監査（STEP 5.7・必須）。** 問題があれば exit 1。`node audit.js <work_dir> <対象.html…>` |
 | `refresh-plaud-token.ps1` | Plaud RESTトークンの自動再取得（約24時間で失効）＋新PC用ZIPの再生成 |
 | `setup-plaud.ps1` | 設定ファイルの対話生成 |
 | `setup-newpc.ps1` / `setup-newpc.cmd` / `newpc-README.txt` | 新PCワンクリックセットアップ |
@@ -81,6 +82,7 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 | 2026-07-28 | ブラウザペイン非表示時の計測が無効になる罠（`visibilityState:hidden`・viewport 0×0 でIntersectionObserver不発火・横スクロール判定が常に真）を追記 |
 | 2026-07-28 | 上記の判定条件を訂正。`innerWidth > 0`（レイアウト計測の可否）と `visibilityState === 'visible'`（IntersectionObserver/transition/screenshotの可否）は**別条件**で、前者だけでは不十分と実測で判明 |
 | 2026-07-28 | チャートのインサイト欠落を全生成物で機械監査し、07-10 ファーマン全体MTG・07-13 小宮山さんMTG の2件を修正（いずれもタイムラインチャート） |
+| 2026-07-28 | **`audit.js` を新規同梱し、STEP 5.7「自己監査」として必須化**。0件でなければ STEP 7 のデプロイに進まないゲートを設定。アセットのバージョンは最頻値方式で自動判定、講話ページは自動免除 |
 | 2026-07-28 | ローカル静的サーバーのHTMLキャッシュ対策（再検証は `?cb=N`）を追記 |
 | 2026-07-28 | MCP `Not authenticated` 時の `login` / REST `/file/detail/{id}` フォールバック手順を追記（gzip自動解凍の分岐を含む） |
 | 2026-07-28 | `get_file` の使用を禁止（20万文字のトランスクリプトが返るため）。STEP 3 の矛盾記述も修正 |
