@@ -4,6 +4,10 @@ Plaud録音（またはJSONメモ）から議事録HTMLサマリーを生成し�
 
 手順の詳細はすべて [`SKILL.md`](./SKILL.md) にある。**この README は概要・セットアップ・変更履歴のみ**を扱う。
 
+- **プラグイン**: `plaud-suite`
+- **正本**: `C:\claude code\skills-marketplace\plugins\plaud-suite\skills\plaud-html\`
+- **取り込み**: `claude plugin update plaud-suite@farman-skills`
+
 ## 概要
 
 ```
