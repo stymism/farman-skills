@@ -113,7 +113,16 @@ git -C $inst pull --ff-only origin main
 ```
 ※ `claude plugin update <plugin>@farman-skills` でも同じ結果になるが、上記のpullで全プラグインまとめて済む。**取り込み後は Claude Code の再起動が必要。**
 
-**クラウドCowork:** 別インストールなので**自動では反映されない**。Cowork側のプラグインUIから更新する（Claudeからは操作・確認できないため、ユーザーに依頼する）。
+**クラウドCowork:** 別インストールなので**自動では反映されない**。Claudeからは操作も状態確認もできないため、**ユーザーに依頼する**。以下の手順で更新できることを2026-07-28に確認済み：
+
+> **Customize → Plugins → Personal plugins** を開く
+> 1. **マーケットプレイス `farman-skills` 自体を更新（Refresh / Update）** ← ここを飛ばすと以降が古いまま
+> 2. そのうえで各プラグイン（plaud-suite / design-suite / farman-tools / personal-suite）の **Update** を実行
+
+- **ポイント:** ローカルの `git pull` と違い、Coworkは「マーケットプレイスの取得」と「プラグインの適用」が**2段階**。プラグイン側だけ押しても反映されない。
+- **更新できたかの確認:** 新設・改名したスキルが候補に出るかを見るのが確実（例: 2026-07-28なら `/skill-sync` が出れば成功）。バージョン表示より信頼できる。
+- ボタンが見当たらない場合は、**マーケットプレイスを削除して再追加**すれば確実に最新が入る。
+- 導入（初回）も同じ画面: Personal plugins の「＋」→ Add marketplace → Add from a repository → `https://github.com/stymism/farman-skills` → 各プラグインを Install。
 
 > **⚠️ 実行時コピーが直接編集されていることがある。** pull前に `git -C $inst status --porcelain` を必ず確認する。差分があれば**捨てる前に正本と突き合わせ**、正本に無い変更なら救出してから pull する（2026-07-28に実際に発生。幸い正本に同内容が入っていたため損失なし）。
 
