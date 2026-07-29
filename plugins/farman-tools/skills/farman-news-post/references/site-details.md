@@ -55,12 +55,14 @@
 <article class="entry">
 <div class="body">
 
-{YYYY年M月D日}放送、日本テレビ『有吉ゼミ 工藤阿須賀の楽しい農園生活』にて、弊社農場で撮影された番組が放映されました
+{YYYY年M月D日}放送、日本テレビ『有吉ゼミ 工藤阿須賀の楽しい農園生活』にて、弊社農場で撮影された番組が放映されました。
 
 </div>
 </article>
 ```
 POST時に `featured_media: 220` も指定する。
+
+> **⚠️ 既知の不具合（2026-07-28 追記）**: 下の `ari()` 関数の文字列は句点(。)が抜けていた。これが原因でID 225〜230の6件が句点なしで公開されていた（2026-07-28に本文末尾へ句点を追加して修正済み）。本文の文末には必ず句点を付けること。
 
 ## REST APIでの投稿（wp-admin タブの javascript_tool で実行）
 
@@ -73,7 +75,7 @@ const base = 'https://farman.jp/wp-json/wp/v2/';
 function link(desc,url){ return desc + "\n\n<a href=\"" + url + "\">" + url + "</a>"; }
 // 有吉ゼミ放映用テンプレ
 const ARIYOSHI_IMG='<img class="alignnone size-full wp-image-220" src="https://farman.jp/wp/wp-content/uploads/2025/03/farman-proposal-deck_page-0009.jpg" alt="" width="400" height="300" />';
-function ari(jp){ return ARIYOSHI_IMG + "\n\n<article class=\"entry\">\n<div class=\"body\">\n\n" + jp + "放送、日本テレビ『有吉ゼミ 工藤阿須賀の楽しい農園生活』にて、弊社農場で撮影された番組が放映されました\n\n</div>\n</article>"; }
+function ari(jp){ return ARIYOSHI_IMG + "\n\n<article class=\"entry\">\n<div class=\"body\">\n\n" + jp + "放送、日本テレビ『有吉ゼミ 工藤阿須賀の楽しい農園生活』にて、弊社農場で撮影された番組が放映されました。\n\n</div>\n</article>"; }
 
 const items = [
   // 例: メディア掲載
