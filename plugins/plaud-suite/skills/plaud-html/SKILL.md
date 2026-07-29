@@ -179,6 +179,48 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 ### チャート内エンティティの色（対応済み）
 - enhance.js は `<meta name="entities">` の語を本文中で自動 `<span class="ent">` 化する（親が flex の直下は除外するが、`<p>`直下は対象）。暗い背景の `.chart-container` 内では既定色 `--accent-strong`(#92400e) が埋もれる。→ **enhance.css の `.chart-container .ent{ color:var(--accent-300) }`**（bold と同色）で解決済み。ページ側の追加ルールは不要。
 
+### ⚠️ enhance.js は `id="detailContent"` が無いと**丸ごと何もしない**（2026-07-29 追記・要注意）
+
+`enhance.js` は冒頭が `var content = document.getElementById('detailContent'); if (!content) return;`。**class の `.detail-content` では起動しない。id が要る。**
+
+2026-07-29時点で、5月〜6/1初期に生成した**15ページが `class="detail-content"` だけで id を持っておらず**、次が全部無効になっていた（`fixid.js` 相当の一括付与で復旧済み）：
+
+> エンティティ強調(`.ent`)・ミニバー(`.mini-bar`)・見出しの🔗アンカー・トップに戻る・FABクラスター・ダークモード・モバイル目次シート・Markdown/PDF出力・既読バッジ(`plaud-read-*`)
+
+**誤診しやすい：** enhance.js は **200 OK で読み込まれ、コンソールにエラーも出さず**、ただ静かに return する。「CSSが効いていない」「キャッシュだろう」と誤診しやすい。
+
+**切り分け（`javascript_tool` で1発）:**
+```javascript
+({ hasClass: !!document.querySelector('.detail-content'),
+   hasId:    !!document.getElementById('detailContent'),   // ← これが false なら原因確定
+   enhanceRan: !!document.querySelector('.mini-bar') })
+```
+`hasClass:true / hasId:false` なら、その `<div class="detail-content …">` に `id="detailContent"` を足すだけで直る。**新規生成時はテンプレどおり `<div class="detail-content" id="detailContent">` にすること**（テンプレには入っているが、旧ページからコピーすると落ちる）。
+
+### ⚠️ テーマ判定は `class="badge-header-*"` 属性で行う（クラス名の素の出現で判定するな・2026-07-29 追記）
+
+ページのテーマ（社内=グリーン / 社外=アンバー / 講話=インジゴ）を判定するとき、**`/badge-header-internal/` のようなクラス名の素の出現でマッチさせてはいけない。** 各ページの `<style>` には **3種のバッジCSSが全部定義されている**ため、社外ページでも `badge-header-internal` の文字列がヒットして**必ず誤判定する**（2026-07-29に実際に発生。社外ページ8件を「社内」と誤検出）。
+
+```javascript
+// ❌ 誤爆する            // ✅ 本文で実際に使われている属性だけを見る
+/badge-header-internal/    /class="badge-header-internal"/
+```
+ブラウザ側で判定するなら `document.querySelector('[class^="badge-header"]').className` が確実。
+
+### チャートに後から `chart-insight` を足すときは差し色をテーマに合わせる（2026-07-29 追記）
+
+`.chart-insight` の `border-left` を `var(--amber-400,#fbbf24)` で固定すると、**社内(緑)・講話(インジゴ)ページで浮く**。ページのテーマを上記の方法で判定し、`var(--green-400,#6ee7b7)` / `var(--indigo-400,#818cf8)` / `var(--amber-400,#fbbf24)` を出し分ける。旧ページは `.chart-insight` の CSS 自体が無いことがあるので、その場合は**最初の `</style>` の直前に追記**する（旧ページは整形済みCSS＝`.chart-title {` のように空白入りのため、`^\.chart-title\{` のような行頭一致での挿入は失敗する）。
+
+### 旧ページの一括補完は「抽出 → パッチJSON → 適用スクリプト」で回す（2026-07-29 追記）
+
+`audit.js --all` は旧テンプレのページを大量に拾う（2026-07-29 の実績: **94件 / 45ページ**）。これを1ページずつ Edit で直すのは非現実的で、抜けも出る。次の3段で回すと確実かつ冪等：
+
+1. **抽出**: 各ページから「タイトル・セクション見出し・チャートのタイトルと中身・`chart-insight`の有無・indexカードの`data-text`」だけをJSONに吐く。**本文全部は読まない**（コンテキストが尽きる）。
+2. **パッチJSON**: `{ "file.html": { "entities": "...", "insights": ["…", null], "decisions": ["…"] } }` の形で内容を書く。`null` は「そのチャートは触らない」。
+3. **適用**: JSONを読んで注入するスクリプト。**必ず後ろの要素から挿入する**（前から入れると以降のインデックスがずれる）。既に存在する要素はスキップして冪等にする。
+
+適用後は `gen-aux.js` → `audit.js --all` → **ローカルサーバーで実描画チェック**（セクションと decision-box が `H2,DEC,H2,DEC…` の順に並ぶか、`<div>`/`</div>` が対応しているか）。スクリプト挿入は構造を壊しうるので、監査0件だけで終わらせない。
+
 ### デプロイ検証
 - git push 後、Cloudflare Pages API でデプロイ状態をポーリング（`github:push`トリガー→`deploy/success` は十数秒）。公開サイトは未ログインだとログイン画面(HTTP 200)が返るため、内容確認は**ローカルサーバーかログイン後**に行う（`pages.dev` の生fetchでタイトル等を見ても中身は判定できない）。
 
@@ -446,6 +488,7 @@ STEP 1 の `filetag_id_list` の結果を使う。タイトルや参加者名で
 - [ ] 全タスク完了時のコンフェッティ
 - [ ] `read-time-tag` 読了時間の自動計算
 - [ ] IntersectionObserver によるスクロールリビール（`.reveal`）
+- [ ] **本文コンテナが `<div class="detail-content" id="detailContent">`**（id が無いと enhance.js が丸ごと動かない。上記「ハマりどころ」参照）
 
 ---
 
