@@ -9,9 +9,9 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | **plaud-suite** | Plaud録音の閲覧/要約/検索/書き起こし/フォローアップ/外部連携/HTMLサマリー(8スキル) | Plaud MCP同梱。初回に `mcp__plaud__login` で対話ログイン |
 | **farman-tools** | farman.jp WordPress「お知らせ」一括投稿／FARMAN見積システム(GAS Web App)の改修・保守(2スキル) | お知らせ投稿はfarman.jpへログイン済みのブラウザ接続。見積システムはGASエディタへの反映はユーザー手動 |
 | **design-suite** | ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド(8スキル) | ロゴ・アイコン生成のみ環境変数 `GEMINI_API_KEY`(任意) |
-| **personal-suite** | 俯瞰レビュー/配布前チェック/外部スキル監査/スキル更新の反映・配布/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ(8スキル) | cal-sync・mail-draftはGmail/Googleカレンダーのコネクタ連携が必要。skill-syncは正本リポジトリへのローカルアクセスが必要（Cowork不可） |
+| **personal-suite** | 俯瞰レビュー/配布前チェック/外部スキル監査/スキル更新の反映・配布/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ/ローカルSDXL画像生成(9スキル) | cal-sync・mail-draftはGmail/Googleカレンダーのコネクタ連携が必要。skill-sync・image-genはローカル環境が必要（Cowork不可） |
 
-合計26スキル。各スキルフォルダに `SKILL.md`（手順の正本）と `README.md`（概要・変更履歴）を置く。
+合計27スキル。各スキルフォルダに `SKILL.md`（手順の正本）と `README.md`（概要・変更履歴）を置く。
 
 ### 実行環境による可否
 
@@ -21,6 +21,7 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 |---|---|---|
 | `plaud-html` | ❌ | PowerShell・`C:\`パス・`~/.plaud/plaud-config.json`・OneDrive作業ディレクトリ・ローカルgit認証に依存 |
 | `skill-sync` | ❌ | 正本リポジトリ（`C:\claude code\skills-marketplace`）へのローカルアクセスが必要 |
+| `image-gen` | ❌ | ローカルのSDXL環境（`C:\claude code\sdxl-local`・13GB）とCPU実行に依存 |
 | その他24スキル | ⭕ | MCP・コネクタ・思考手順が主体。ロゴ/アイコン生成のみ `GEMINI_API_KEY` が必要 |
 
 ## 使い方
