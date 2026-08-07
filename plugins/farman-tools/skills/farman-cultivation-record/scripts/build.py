@@ -198,7 +198,10 @@ def fill_sheet(ws, cfg, name, area, log, summ, fallow, seeds):
     hdr = cfg['header']
     ws['F2'] = name
     ws['F3'] = cfg['year']['label']
-    ws['J4'] = datetime.datetime.strptime(hdr['madeOn'], '%Y-%m-%d')
+    made = hdr.get('madeOn')
+    ws['J4'] = (datetime.datetime.strptime(made, '%Y-%m-%d') if made
+                else datetime.datetime.now().replace(
+                    hour=0, minute=0, second=0, microsecond=0))   # 省略時は実行日
 
     for r, lab, val in ((6, '圃場名', '%s(%s)' % (name, area)),
                         (7, '栽培面積', area), (8, '責任者', hdr['staff'])):
@@ -338,9 +341,13 @@ def main():
     ap.add_argument('--out-dir', help='出力先フォルダ(設定より優先)')
     a = ap.parse_args()
     cfg = json.load(open(os.path.expanduser(a.config), encoding='utf-8'))
+    cfg.setdefault('paths', {})          # 設定にパスが無くても引数で補える
     for key, val in (('ledger', a.ledger), ('template', a.template), ('outputDir', a.out_dir)):
         if val:
             cfg['paths'][key] = val
+    for key in ('ledger', 'template', 'outputDir'):
+        if not cfg['paths'].get(key):
+            ap.error('%s のパスが設定にも引数にもありません' % key)
     recs = json.load(open(a.records, encoding='utf-8'))
     ledger = EX.read_ledger(cfg)
     exclude = set(cfg.get('excludeFields', []))

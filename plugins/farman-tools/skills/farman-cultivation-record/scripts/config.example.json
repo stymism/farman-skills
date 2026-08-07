@@ -19,7 +19,7 @@
   "header": {
     "manager": "<生産行程管理責任者名>",
     "staff": "<作業者名を並べる>",
-    "madeOn": "2026-08-07"
+    "madeOn": "(省略すると実行日が入る。固定したいときだけ YYYY-MM-DD で書く)"
   },
 
   "districts": [

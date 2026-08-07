@@ -312,10 +312,14 @@ def main():
     ap.add_argument('--ledger', help='圃場台帳xlsxのパス(設定より優先)')
     a = ap.parse_args()
     cfg = json.load(open(os.path.expanduser(a.config), encoding='utf-8'))
+    cfg.setdefault('paths', {})          # 設定にパスが無くても引数で補える
     if a.daily_log:
         cfg['paths']['dailyLog'] = a.daily_log
     if a.ledger:
         cfg['paths']['ledger'] = a.ledger
+    for key in ('dailyLog', 'ledger'):
+        if not cfg['paths'].get(key):
+            ap.error('%s のパスが設定にも引数にもありません' % key)
 
     ledger, recs, unp = run(cfg)
     if unp:
