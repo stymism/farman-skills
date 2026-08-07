@@ -7,11 +7,11 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | プラグイン | 内容 | 実行時の依存 |
 |---|---|---|
 | **plaud-suite** | Plaud録音の閲覧/要約/検索/書き起こし/フォローアップ/外部連携/HTMLサマリー(8スキル) | Plaud MCP同梱。初回に `mcp__plaud__login` で対話ログイン |
-| **farman-tools** | farman.jp WordPress「お知らせ」一括投稿／FARMAN見積システム(GAS Web App)の改修・保守(2スキル) | お知らせ投稿はfarman.jpへログイン済みのブラウザ接続。見積システムはGASエディタへの反映はユーザー手動 |
+| **farman-tools** | farman.jp WordPress「お知らせ」一括投稿／FARMAN見積システム(GAS Web App)の改修・保守／有機JAS「栽培履歴」の作成(3スキル) | お知らせ投稿はfarman.jpへログイン済みのブラウザ接続。見積システムはGASエディタへの反映はユーザー手動。栽培履歴は `~/.farman/cultivation-record.json` と Python(openpyxl) |
 | **design-suite** | ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド(8スキル) | ロゴ・アイコン生成のみ環境変数 `GEMINI_API_KEY`(任意) |
 | **personal-suite** | 俯瞰レビュー/配布前チェック/外部スキル監査/スキル更新の反映・配布/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ/ローカルSDXL画像生成(9スキル) | cal-sync・mail-draftはGmail/Googleカレンダーのコネクタ連携が必要。skill-sync・image-genはローカル環境が必要（Cowork不可） |
 
-合計27スキル。各スキルフォルダに `SKILL.md`（手順の正本）と `README.md`（概要・変更履歴）を置く。
+合計28スキル。各スキルフォルダに `SKILL.md`（手順の正本）と `README.md`（概要・変更履歴）を置く。
 
 ### 実行環境による可否
 
@@ -22,6 +22,7 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | `plaud-html` | ❌ | PowerShell・`C:\`パス・`~/.plaud/plaud-config.json`・OneDrive作業ディレクトリ・ローカルgit認証に依存 |
 | `skill-sync` | ❌ | 正本リポジトリ（`C:\claude code\skills-marketplace`）へのローカルアクセスが必要 |
 | `image-gen` | ❌ | ローカルのSDXL環境（`C:\claude code\sdxl-local`・13GB）とCPU実行に依存 |
+| `farman-cultivation-record` | ❌ | ローカルのxlsx（作業日誌・圃場台帳）とOneDriveの出力先、ローカルPython実行に依存 |
 | その他24スキル | ⭕ | MCP・コネクタ・思考手順が主体。ロゴ/アイコン生成のみ `GEMINI_API_KEY` が必要 |
 
 ## 使い方
@@ -42,6 +43,8 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 ## セキュリティ方針
 - **秘密情報は一切コミットしない。** 認証は各実行環境で対話ログイン(plaud)、ブラウザセッション(farman)、環境変数(design/GEMINI_API_KEY)で解決する。
 - `.gitignore` で `.env` / `*.credentials.json` / `plaud-config.json` / `.wrangler` 等を除外済み。
+- **スプレッドシートID・氏名・地番・住所は一切コミットしない。** `farman-cultivation-record` はこれらを
+  `~/.farman/cultivation-record.json`（リポジトリ外）に置く設計。社内メンバーへは設定ファイルを個別に手渡す。
 
 ## メンテナンス（編集はここが正本）
 スキルの正本は**このリポジトリ**（`plugins/<group>/skills/<skill>/`）。編集→commit→push後、各環境で更新する:

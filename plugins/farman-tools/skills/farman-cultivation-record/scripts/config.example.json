@@ -1,0 +1,63 @@
+{
+  "_comment": "このファイルを ~/.farman/cultivation-record.json にコピーして各自の環境に合わせて書き換える。秘密情報を含むためリポジトリにはコミットしないこと。",
+
+  "year": {
+    "label": "2025年",
+    "calendar": 2025,
+    "logSheetPrefix": "R7."
+  },
+
+  "paths": {
+    "dailyLog": "C:/Users/<user>/Downloads/作業日誌_R7.xlsx",
+    "ledger": "C:/Users/<user>/Downloads/圃場リスト(JAS対応).xlsx",
+    "ledgerSheet": "2026提出分",
+    "template": "C:/Users/<user>/Downloads/栽培履歴_ひな形.xlsx",
+    "templateSheet": "<ひな形にする既存シート名>",
+    "outputDir": "C:/Users/<user>/OneDrive/ドキュメント/<社内フォルダ>/栽培履歴"
+  },
+
+  "header": {
+    "manager": "<生産行程管理責任者名>",
+    "staff": "<作業者名を並べる>",
+    "madeOn": "2026-08-07"
+  },
+
+  "districts": [
+    { "ledger": "<地名1>", "logColumn": "<日誌の圃場列見出し>" },
+    { "ledger": "<地名2>", "logColumn": "<日誌の圃場列見出し>" },
+    { "ledger": "<地名3+固定コード>", "logColumn": "<日誌の圃場列見出し>", "fixedCode": "<固定コード>" }
+  ],
+
+  "_note_aliases": "日誌にだけ現れる略号を台帳の圃場コードへ読み替える",
+  "aliases": { "<略号A>": ["<台帳コード>"], "<略号B>": ["<台帳コード>"] },
+
+  "_note_mergedFields": "日誌で常に一体記録される圃場を1シートに統合する [台帳名1, 台帳名2, 統合後の名前]",
+  "mergedFields": [["<台帳名1>", "<台帳名2>", "<統合後の名前>"]],
+
+  "_note_excludeFields": "台帳にあるが栽培圃場でないもの(資材置場・集出荷場用地など)",
+  "excludeFields": ["<台帳名>"],
+
+  "_note_nonFieldLabels": "圃場列に書かれるが圃場ではない呼称。長いものから順に除去される",
+  "nonFieldLabels": ["<施設名>", "<屋号>", "周辺"],
+
+  "_note_nonCultivation": "圃場欄に記録されるが栽培作業でない事務・出荷作業。履歴から除外する",
+  "nonCultivation": ["発送", "出荷", "掃除", "パック", "洗浄", "冷凍庫", "紙ゴミ",
+                     "事務", "MTG", "打ち合わせ", "納品", "検品", "支度", "会議"],
+
+  "_note_nonFarming": "これしか記録が無い圃場は休耕扱いにする(造成工事など)",
+  "nonFarming": ["ドッグラン", "ガゼボ", "人工芝", "フェンス", "丁張り", "植樹", "搬入"],
+
+  "_note_fertilizerCanon": "肥料名の表記ゆれを統一する",
+  "fertilizerCanon": { "<表記ゆれ>": "<正式名>" },
+
+  "_note_fertilizerDrop": "肥料名の抽出結果から捨てる語(単位・作業語・機械)",
+  "fertilizerDrop": ["リットル", "耕耘", "施肥", "追肥"],
+
+  "_note_protectants": "防除資材。肥料ではなく「使用資材」欄に回す",
+  "protectants": { "ボルドー": "ボルドー液" },
+
+  "options": {
+    "recordFertilizerAmount": false,
+    "delegatedTab": { "sheet": "<委託タブ名>", "onlyField": "<地区>|<コード>" }
+  }
+}
