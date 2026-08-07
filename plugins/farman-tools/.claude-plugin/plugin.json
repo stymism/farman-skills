@@ -1,7 +1,7 @@
 {
   "name": "farman-tools",
   "description": "ファーマン社内ツールの改修・運用スキル集。(1)farman-news-post: farman.jp WordPress「お知らせ」へ既存書式で一括投稿(ブラウザのX-WP-Nonceセッション経由)。(2)farman-estimate-maintain: FARMAN見積システム(GAS Web App・コード.js＋index.html・自社HPにiframe埋め込み)の改修・再デプロイ手順とハマりどころ。(3)farman-cultivation-record: 有機JAS提出用「栽培履歴」を作業日誌と圃場台帳から圃場ごとに作成。日誌の列ずれ・フィルタによる行欠落・複数圃場の一括記載といった取りこぼしの罠への対処を含む。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": {
     "name": "y-ino",
     "email": "y-ino@farman.jp"

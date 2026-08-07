@@ -7,7 +7,7 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | プラグイン | 内容 | 実行時の依存 |
 |---|---|---|
 | **plaud-suite** | Plaud録音の閲覧/要約/検索/書き起こし/フォローアップ/外部連携/HTMLサマリー(8スキル) | Plaud MCP同梱。初回に `mcp__plaud__login` で対話ログイン |
-| **farman-tools** | farman.jp WordPress「お知らせ」一括投稿／FARMAN見積システム(GAS Web App)の改修・保守／有機JAS「栽培履歴」の作成(3スキル) | お知らせ投稿はfarman.jpへログイン済みのブラウザ接続。見積システムはGASエディタへの反映はユーザー手動。栽培履歴は `~/.farman/cultivation-record.json` と Python(openpyxl) |
+| **farman-tools** | farman.jp WordPress「お知らせ」一括投稿／FARMAN見積システム(GAS Web App)の改修・保守／有機JAS「栽培履歴」の作成(3スキル) | お知らせ投稿はfarman.jpへログイン済みのブラウザ接続。見積システムはGASエディタへの反映はユーザー手動。栽培履歴は設定ファイルと Python(openpyxl)。Coworkはファイルをアップロードして使う |
 | **design-suite** | ブランド/デザインシステム/UI-UX/バナー/アイコン/スライド/フロントエンド(8スキル) | ロゴ・アイコン生成のみ環境変数 `GEMINI_API_KEY`(任意) |
 | **personal-suite** | 俯瞰レビュー/配布前チェック/外部スキル監査/スキル更新の反映・配布/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ/ローカルSDXL画像生成(9スキル) | cal-sync・mail-draftはGmail/Googleカレンダーのコネクタ連携が必要。skill-sync・image-genはローカル環境が必要（Cowork不可） |
 
@@ -22,8 +22,7 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 | `plaud-html` | ❌ | PowerShell・`C:\`パス・`~/.plaud/plaud-config.json`・OneDrive作業ディレクトリ・ローカルgit認証に依存 |
 | `skill-sync` | ❌ | 正本リポジトリ（`C:\claude code\skills-marketplace`）へのローカルアクセスが必要 |
 | `image-gen` | ❌ | ローカルのSDXL環境（`C:\claude code\sdxl-local`・13GB）とCPU実行に依存 |
-| `farman-cultivation-record` | ❌ | ローカルのxlsx（作業日誌・圃場台帳）とOneDriveの出力先、ローカルPython実行に依存 |
-| その他24スキル | ⭕ | MCP・コネクタ・思考手順が主体。ロゴ/アイコン生成のみ `GEMINI_API_KEY` が必要 |
+| その他25スキル | ⭕ | MCP・コネクタ・思考手順が主体。ロゴ/アイコン生成のみ `GEMINI_API_KEY` が必要 |
 
 ## 使い方
 

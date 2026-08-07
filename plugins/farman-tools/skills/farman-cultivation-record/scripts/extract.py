@@ -307,8 +307,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', required=True)
     ap.add_argument('-o', '--out', default='records.json')
+    # Cowork等、設定ファイルのパスが使えない環境向けの上書き
+    ap.add_argument('--daily-log', help='作業日誌xlsxのパス(設定より優先)')
+    ap.add_argument('--ledger', help='圃場台帳xlsxのパス(設定より優先)')
     a = ap.parse_args()
     cfg = json.load(open(os.path.expanduser(a.config), encoding='utf-8'))
+    if a.daily_log:
+        cfg['paths']['dailyLog'] = a.daily_log
+    if a.ledger:
+        cfg['paths']['ledger'] = a.ledger
 
     ledger, recs, unp = run(cfg)
     if unp:

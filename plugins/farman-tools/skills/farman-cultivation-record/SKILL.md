@@ -29,6 +29,18 @@ description: 有機JAS認証の提出書類「栽培履歴」を、作業日誌�
 「ファイル → ダウンロード → Microsoft Excel(.xlsx)」で落としてもらい、そのパスを受け取る。
 理由は「罠1」を参照。
 
+### 1.5 実行環境を見分ける
+
+**Cowork（クラウド）の場合はローカルのフォルダが見えない。** 先に環境を確かめること。
+
+| | ローカル Claude Code | Cowork |
+|---|---|---|
+| ファイルの渡し方 | 設定ファイルにパスを書く | **4つともアップロードしてもらう** |
+| 出力先 | 設定の `outputDir` | 出力用ディレクトリ → ユーザーがダウンロード |
+| 設定ファイル | `~/.farman/cultivation-record.json` | これもアップロードしてもらう |
+
+Coworkでは `--daily-log` `--ledger` `--template` `--out-dir` でパスを上書きする（下記）。
+
 ### 2. 設定ファイルを用意する
 
 `~/.farman/cultivation-record.json`。無ければ `scripts/config.example.json` をコピーして作る。
@@ -40,6 +52,16 @@ description: 有機JAS認証の提出書類「栽培履歴」を、作業日誌�
 python scripts/extract.py --config ~/.farman/cultivation-record.json -o records.json
 python scripts/build.py   --config ~/.farman/cultivation-record.json -r records.json
 ```
+
+**Coworkの場合**は、アップロードされた4ファイル（作業日誌・圃場台帳・ひな形・設定ファイル）の
+実際のパスを引数で渡す。設定ファイル内のパスは使わない。
+
+```bash
+python scripts/extract.py --config <設定.json> -o records.json --daily-log <日誌.xlsx> --ledger <台帳.xlsx>
+python scripts/build.py --config <設定.json> -r records.json --ledger <台帳.xlsx> --template <ひな形.xlsx> --out-dir <出力先>
+```
+
+`openpyxl` が無ければ `pip install openpyxl` を先に実行する。
 
 `extract.py` は「未解釈が残った圃場セル」を出力する。**ここが0件でなければ先へ進まない。**
 残っていたら `nonFieldLabels` か `aliases` に足す（`references/field-codes.md`）。

@@ -332,8 +332,15 @@ def main():
     ap.add_argument('--config', required=True)
     ap.add_argument('-r', '--records', default='records.json')
     ap.add_argument('--only', help='この地名のブックだけ作り直す(他ファイルに触れない)')
+    # Cowork等、設定ファイルのパスが使えない環境向けの上書き
+    ap.add_argument('--ledger', help='圃場台帳xlsxのパス(設定より優先)')
+    ap.add_argument('--template', help='ひな形xlsxのパス(設定より優先)')
+    ap.add_argument('--out-dir', help='出力先フォルダ(設定より優先)')
     a = ap.parse_args()
     cfg = json.load(open(os.path.expanduser(a.config), encoding='utf-8'))
+    for key, val in (('ledger', a.ledger), ('template', a.template), ('outputDir', a.out_dir)):
+        if val:
+            cfg['paths'][key] = val
     recs = json.load(open(a.records, encoding='utf-8'))
     ledger = EX.read_ledger(cfg)
     exclude = set(cfg.get('excludeFields', []))
