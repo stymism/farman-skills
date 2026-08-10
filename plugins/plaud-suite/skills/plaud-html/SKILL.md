@@ -89,7 +89,7 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 
 ### Plaud MCP のフォルダフィルタリング非対応（毎回チェック → 対応され次第RESTを廃止）
 
-**2026-07-28 再実測（2026-07-06 から変化なし）：**
+**2026-08-10 再実測（2026-07-06 / 2026-07-28 から変化なし）：**
 - `list_files` のスキーマに `folder_id` パラメータは**存在しない**（入力は `query`/`date_from`/`date_to`/`page`/`page_size` のみ）
 - `list_files`・`get_file` のレスポンスにもフォルダ情報（`filetag_id_list` 等）は**含まれない**（各件 `id`/`name`/`created_at`/`serial_number`/`start_at`/`duration` ＋ get_fileは `presigned_url`/`source_list`/`note_list`）
 - MCPの認証はOAuth（`login` ツール）で自前処理されるため、**トークンが必要なのはフォルダ判定のRESTだけ**
@@ -107,6 +107,7 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 Plaud MCPの認証は**RESTトークン（`plaud-config.json`）とは完全に別系統のOAuth**。設定ファイルを直しても復旧しないし、`refresh-plaud-token.ps1` も無関係。`list_files`/`get_note`/`get_current_user` が揃って `Not authenticated. Please login first.` を返したらこれ。
 
 1. **`mcp__plaud__login` を呼ぶ**（ブラウザが開きユーザーがログイン）→ `get_current_user` で `y-ino@farman.jp` が返れば復旧
+   - ⚠️ **`login` は OAuth コールバック用に localhost:8199 を使う**（2026-08-10 判明）。この検証用ローカル静的サーバー（下記「見た目の検証法」）を **8199 で立てていると `Failed to start callback server: port 8199 is in use` でログインできない**。エラー文は「別の `plaud login` が動いているかも」と示唆するが、実際は自分で立てたサーバーが原因のことがある。**検証用サーバーには 8199 を使わない**（例: 8123）。既に8199で立てている場合は `preview_stop` してから `login` する
 2. 切り分け: 他のMCP（Asana `get_me` 等）が応答するならMCP基盤自体は正常で、Plaudの認証だけの問題
 3. **ログインできない／ユーザー不在で進めたい場合のフォールバック（実績あり）**: 議事録本文は `get_note` を使わず REST で取れる。
    ```
@@ -140,7 +141,7 @@ Plaud MCPの認証は**RESTトークン（`plaud-config.json`）とは完全に�
 
 ### 見た目（色・視認性）の検証法
 - **Claude Desktopのプレビューパネルは独自のwebviewキャッシュを持ち、ブラウザのキャッシュクリアやreloadでも更新されないことがある。** 「見た目が変わってない」と言われても、ファイルは直っている場合がある。プレビュー表示を絶対視しない。
-- **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。
+- **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。**ポートに 8199 を使わないこと**（`mcp__plaud__login` のOAuthコールバックが8199を使うため、後からMCPログインが必要になったときに衝突する。2026-08-10 に実際に発生。8123 等を使う）。
 - CSSの見た目修正は**共通ファイル(enhance.css)の1ルール**に集約する。**ページごとのインライン小細工（`style=... !important` 等）は付けない**（enhance.cssが正・全ページに効く）。
 - **共通CSS(style.css/enhance.css)を変えたら、参照する全HTMLの `?v=N` を上げてキャッシュバストする**（Desktop/ブラウザがCSSをキャッシュし「直ってない」の主因になる）。UTF-8安全な一括置換: `Get-ChildItem *.html | %{ $t=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); [IO.File]::WriteAllText($_.FullName, ($t -replace 'enhance\.css\?v=\d+','enhance.css?v=N'), (New-Object Text.UTF8Encoding($false))) }`。**テンプレは現在 `enhance.css?v=8`**（2026-08-10 修正。本文テンプレの記述が実態の v=8 に対し v=2 のまま取り残されていた。`audit.js` は全ページの最頻値を正とするため、テンプレどおり v=2 で新規生成すると監査に引っかかる。**新規生成前に既存ページの最頻値を確認すること**: `Get-ChildItem *.html | %{ [regex]::Matches([IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8),'enhance\.css\?v=\d+') } | %{ $_.Value } | Group-Object | Sort Count -Desc | Select -First 1`）
 
