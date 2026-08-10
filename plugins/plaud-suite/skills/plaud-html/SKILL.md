@@ -142,7 +142,7 @@ Plaud MCPの認証は**RESTトークン（`plaud-config.json`）とは完全に�
 - **Claude Desktopのプレビューパネルは独自のwebviewキャッシュを持ち、ブラウザのキャッシュクリアやreloadでも更新されないことがある。** 「見た目が変わってない」と言われても、ファイルは直っている場合がある。プレビュー表示を絶対視しない。
 - **実レンダリングは自前の静的サーバーで数値検証する**: `.claude/launch.json` に `python -m http.server <port> --directory <work_dir>` を定義→preview_start→preview_eval で `getComputedStyle(el).color` 等を**計測**して確認する。公開サイトはPages Functionsで認証(ログイン)がかかるが、静的サーバーなら生HTMLが見える。
 - CSSの見た目修正は**共通ファイル(enhance.css)の1ルール**に集約する。**ページごとのインライン小細工（`style=... !important` 等）は付けない**（enhance.cssが正・全ページに効く）。
-- **共通CSS(style.css/enhance.css)を変えたら、参照する全HTMLの `?v=N` を上げてキャッシュバストする**（Desktop/ブラウザがCSSをキャッシュし「直ってない」の主因になる）。UTF-8安全な一括置換: `Get-ChildItem *.html | %{ $t=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); [IO.File]::WriteAllText($_.FullName, ($t -replace 'enhance\.css\?v=\d+','enhance.css?v=N'), (New-Object Text.UTF8Encoding($false))) }`。テンプレは現在 `enhance.css?v=2`
+- **共通CSS(style.css/enhance.css)を変えたら、参照する全HTMLの `?v=N` を上げてキャッシュバストする**（Desktop/ブラウザがCSSをキャッシュし「直ってない」の主因になる）。UTF-8安全な一括置換: `Get-ChildItem *.html | %{ $t=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); [IO.File]::WriteAllText($_.FullName, ($t -replace 'enhance\.css\?v=\d+','enhance.css?v=N'), (New-Object Text.UTF8Encoding($false))) }`。**テンプレは現在 `enhance.css?v=8`**（2026-08-10 修正。本文テンプレの記述が実態の v=8 に対し v=2 のまま取り残されていた。`audit.js` は全ページの最頻値を正とするため、テンプレどおり v=2 で新規生成すると監査に引っかかる。**新規生成前に既存ページの最頻値を確認すること**: `Get-ChildItem *.html | %{ [regex]::Matches([IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8),'enhance\.css\?v=\d+') } | %{ $_.Value } | Group-Object | Sort Count -Desc | Select -First 1`）
 
 ### ⚠️ ブラウザペイン非表示だと「計測」が全部ウソになる（2026-07-28 追記・最重要）
 
@@ -908,7 +908,7 @@ JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.s
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
-  <link rel="stylesheet" href="enhance.css?v=2">
+  <link rel="stylesheet" href="enhance.css?v=8">
   <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 :root{
@@ -1118,7 +1118,7 @@ function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#f
 
 **コンテンツ側で必ず入れる（知能化）：**
 
-1. **`<meta name="entities">`** … 人物・企業名をカンマ区切り。本文中の該当名が自動で強調（`.ent`）される。**1文字の固有名（「原」「林」等の1字姓）は入れない**（「原料」「林業」等の無関係な語に誤マッチして色が付く。enhance.js側でも2文字未満は強調対象外にしているが、メタにも入れないこと）。
+1. **`<meta name="entities">`** … 人物・企業名をカンマ区切り。本文中の該当名が自動で強調（`.ent`）される。**1文字の固有名（「原」「林」等の1字姓）は入れない**（「原料」「林業」等の無関係な語に誤マッチして色が付く。enhance.js側でも2文字未満は強調対象外にしているが、メタにも入れないこと）。**また、entities に書いた語は本文に必ず登場させること**（2026-08-10 追記。全体MTGの entities に、他ページから引き写した参加者名「井上・関根・瀬戸山」を入れたが、その回のPlaud要約には出てこないため本文に書けず、`audit.js` の「meta entities の語が本文に無い」で検出された。**参加者欄・entities を前回ページからコピーしない。** Plaud要約に名前が無い回は、参加者を推測で補わず entities からも外す）。
 2. **キーワードチップ**（ヒーロー直後／本文冒頭に）：
 ```html
 <div class="kw-bar">
