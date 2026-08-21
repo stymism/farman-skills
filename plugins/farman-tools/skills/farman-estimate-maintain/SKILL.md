@@ -24,7 +24,7 @@ description: FARMAN見積システム（有機野菜の見積もりWebアプリ�
 
 ## ファイルの場所と「正本」ルール
 
-- ローカルの作業コピー（現状 `C:\Users\farma\Downloads\` にある）:
+- ローカルの作業コピー（`C:\Users\farma\OneDrive\ドキュメント\farman\見積システム\` に格納。2026-08-21に `C:\Users\farma\Downloads\` から移動済み。Downloads側は正ではないので参照しない）:
   - `コード.js` — サーバー側の全ロジック（GASの `Code.gs` に対応）
   - `index.html` — クライアント全体（CSS/HTML/JSが1ファイル。GASの `index.html` に対応）
   - `appsscript.json` — マニフェスト（スコープ3つ: spreadsheets / script.scriptapp / script.send_mail）
