@@ -7,7 +7,15 @@
 - **プラグイン**: `strategy-suite`
 - **正本**: `C:\claude code\skills-marketplace\plugins\strategy-suite\skills\strategy-council\`
 - **取り込み**: `claude plugin update strategy-suite@farman-skills`
-- **Cowork**: ⭕ 動く（Agentツールが使える環境なら。作業フォルダはカレント配下になる）
+- **Cowork**: ⭕ 動く（Agentツールが使える環境なら。作業フォルダはカレント配下の `Strategist/` になる）
+
+## 出力先
+
+```
+OneDrive\ドキュメント\farman\Strategist\<案件名>\YYYY-MM-DD\
+```
+
+全案件を `Strategist` に集約し、**案件ごとに検討が積み上がる**。同じ案件を再検討すると、前回の最終レポートを引き継いで走る。
 
 ## 起動するとき
 
@@ -61,3 +69,4 @@ Step 5   レビュー＆最終レポート
 | 日付 | 内容 |
 |---|---|
 | 2026-08-24 | 新規作成。5工程の分業パイプラインに Step 4.5「レッドチーム問答」を追加。収束判定の自動化・手加減検出・骨抜き検出を実装 |
+| 2026-08-24 | 出力先を `farman\Strategist\<案件名>\YYYY-MM-DD\` に変更（farman直下に散らかさない）。案件フォルダ再利用と、前回レポートの引き継ぎを追加 |
