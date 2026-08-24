@@ -1,0 +1,9 @@
+{
+  "name": "strategy-suite",
+  "description": "複数のAIエージェントが分業して戦略を作るスキル集(1スキル): 議事録→イシュー構造化→並列リサーチ→戦略統合→レッドチーム(全否定役)との自動問答→レビュー→最終レポート(strategy-council)。",
+  "version": "1.0.0",
+  "author": {
+    "name": "y-ino",
+    "email": "y-ino@farman.jp"
+  }
+}

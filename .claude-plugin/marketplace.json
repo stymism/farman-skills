@@ -30,6 +30,12 @@
       "source": "./plugins/personal-suite",
       "description": "個人の思考整理・情報保護・日常運用のための汎用スキル集(俯瞰レビュー/詰問インタビュー/配布前チェック/外部スキル監査/スキル更新の反映・配布/カレンダー同期/メール下書き/ブレインダンプ整理/セッション引き継ぎ/ローカルSDXL画像生成)。",
       "category": "productivity"
+    },
+    {
+      "name": "strategy-suite",
+      "source": "./plugins/strategy-suite",
+      "description": "複数のAIエージェントが分業して戦略を作る。議事録→イシュー構造化→並列リサーチ→戦略統合→レッドチーム(全否定役)との自動問答→レビュー→最終レポート。",
+      "category": "productivity"
     }
   ]
 }
