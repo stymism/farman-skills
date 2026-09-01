@@ -12,7 +12,7 @@
 ## 出力先
 
 ```
-OneDrive\ドキュメント\farman\Strategist\<案件名>\YYYY-MM-DD\
+OneDrive\ドキュメント\farman\03_営業・提案\Strategist\<案件名>\YYYY-MM-DD\
 ```
 
 全案件を `Strategist` に集約し、**案件ごとに検討が積み上がる**。同じ案件を再検討すると、前回の最終レポートを引き継いで走る。
