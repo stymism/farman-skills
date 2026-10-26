@@ -32,3 +32,4 @@
 | 2026-07-28 | SKILL.md 末尾に全スキル共通の更新反映ルール（`/skill-sync` 連携）を追加 |
 | 2026-10-26 | 追加検査「型の残り物」と `scripts/template_leftovers.py` を追加(条件付き書式・文字色・作成者などの残りを検出。ボンディッシュ見積書で型の縞模様・色・作成者が残った件から) |
 | 2026-10-26 | 追加検査に「日本語 PDF の字形(pdffonts で CJKsc/tc を検出)」と「宛名の御中と様の併用」を追加 |
+| 2026-10-26 | 字形の確かめを pdffonts から画像の照合に変更(pdffonts では見抜けなかった)。`scripts/pdf_visual_check.py`(字形・切れ)と `scripts/office_to_pdf_ja.sh`(日本語の言語設定で PDF 化)を追加。v1.7 で NG・v1.8 で OK を出し分けることを確認済み |
