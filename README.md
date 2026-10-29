@@ -56,4 +56,4 @@ y-ino / Farman の個人スキルを **ローカルClaude CodeとクラウドCow
 ※ `~/.claude-code/skills/` の素置きコピーは全廃済み（2026-07-07）。そこにファイルを置かないこと。
 
 ## 関連リポジトリ
-- `stymism/farman-mtg-site`（**非公開**）: farman-mtg.pages.dev のデプロイ用。plaud-html の STEP7 が push → Cloudflare Pages が自動公開
+- `stymism/farman-mtg-site`（**非公開**）: farman-gijiroku.pages.dev のデプロイ用。plaud-html の STEP7 が push → Cloudflare Pages が自動公開

@@ -228,9 +228,9 @@ $config = @{
     }
   }
   cloudflare = @{
-    account_id = "d110669e3f96b8725ea5bb1b149d61ab"
+    account_id = "195b34d5a2e24676726b0ec132cccaa2"
     api_token = $cloudflare_token
-    project_name = "farman-mtg"
+    project_name = "farman-gijiroku"
   }
   paths = @{
     work_dir = $work_dir

@@ -27,7 +27,7 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 | 🎤 講話録音 | インジゴ（`#1e1b4b`） | 講話ナレッジテンプレート（ToDo/Asanaなし） |
 | 面接 | — | **HTML化対象外**（個人情報のためスキップ） |
 
-公開先: https://farman-mtg.pages.dev （サイトrepo: `stymism/farman-mtg-site`・非公開）
+公開先: https://farman-gijiroku.pages.dev （サイトrepo: `stymism/farman-mtg-site`・非公開）
 
 ## 前提・セットアップ
 

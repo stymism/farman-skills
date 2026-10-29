@@ -248,7 +248,7 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 「件数が多いから一気にやる」は逆で、**件数が多いときほど1件で試す**（誤りも同じ件数だけ量産されるため）。
 
 ### デプロイ検証
-- git push 後、2 分ほど待って公開 URL（https://farman-mtg.pages.dev/）が 200 で返るかを見る（Access か合言葉の画面まで）。2026-10-29 から Cloudflare の API トークンは使わない（公開は Git 連携だけ・トークンは削除＝秘密を減らす）
+- git push 後、2 分ほど待って公開 URL（https://farman-gijiroku.pages.dev/）が 200 で返るかを見る（Access か合言葉の画面まで）。2026-10-29 から Cloudflare の API トークンは使わない（公開は Git 連携だけ・トークンは削除＝秘密を減らす）
 
 ---
 
@@ -1475,13 +1475,13 @@ if ($leak -or $tokHit.Count) { git -C $repoDir reset -q; Write-Host "⛔ 秘密�
 if (git -C $repoDir status --porcelain) {
   git -C $repoDir commit -m "deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
   git -C $repoDir push origin main
-  Write-Host "✅ push完了 → Cloudflare Pages が自動で公開（1〜2分）: https://farman-mtg.pages.dev" -ForegroundColor Green
+  Write-Host "✅ push完了 → Cloudflare Pages が自動で公開（1〜2分）: https://farman-gijiroku.pages.dev" -ForegroundColor Green
 } else {
   Write-Host "変更なし（デプロイ不要）" -ForegroundColor Yellow
 }
 ```
 
-デプロイ完了後、URL `https://farman-mtg.pages.dev` を表示する（Pagesビルド完了まで1〜2分）。
+デプロイ完了後、URL `https://farman-gijiroku.pages.dev` を表示する（Pagesビルド完了まで1〜2分）。
 
 > **認証エラーになるPCでは**、一度だけ `gh auth login`（GitHub CLI）を実行してから再実行する。
 

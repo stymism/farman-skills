@@ -12,9 +12,9 @@
         "password": "YOUR_PLAUD_LOGIN_PASSWORD"
     },
     "cloudflare": {
-        "account_id": "d110669e3f96b8725ea5bb1b149d61ab",
+        "account_id": "195b34d5a2e24676726b0ec132cccaa2",
         "api_token": "YOUR_CLOUDFLARE_API_TOKEN_HERE",
-        "project_name": "farman-mtg"
+        "project_name": "farman-gijiroku"
     },
     "paths": {
         "work_dir": "~/.plaud/farman-mtg-site",
