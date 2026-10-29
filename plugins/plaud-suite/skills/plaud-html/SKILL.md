@@ -11,7 +11,7 @@ Plaud録音またはJSONメモから議事録HTMLサマリーを生成するス�
 
 | ソース | 使用ケース | STEP 1 の扱い |
 |--------|-----------|--------------|
-| **Plaud録音**（通常） | Plaudでの録音・AI要約済みファイル | Plaud REST API で未HTML化ファイルを検出 |
+| **Plaud録音**（通常） | Plaudでの録音・AI要約済みファイル | `plaud-folders.ps1`（4.0 の API）の一覧と、サイトのページの file_id を突き合わせて検出 |
 | **JSONメモ**（直接HTML化） | ユーザーが `@ファイルパス` でJSONを添付した場合 | STEP 1〜3 をスキップし、JSONの内容を直接使用 |
 
 ### JSONメモから直接HTML化する場合のルール
@@ -46,11 +46,10 @@ Plaud録音またはJSONメモから議事録HTMLサマリーを生成するス�
 | **作業ディレクトリ**（HTML・index.html・kowa-knowledge.html） | 🟢 GitHub `stymism/farman-mtg-site`（非公開）の clone＝`~/.plaud/farman-mtg-site`（2026-10-29 から唯一の正本。OneDrive の旧作業場は `claude-data/_archive/plaud_summaries_261029`） | configの `paths.work_dir`（＝この clone） |
 | **git + GitHub認証**（STEP7のデプロイ用） | 🔴 ローカル | デプロイするPCのみ `gh auth login` を1回 |
 
-> **重要：MCPコネクタ と Plaud REST APIトークンは別物。**
-> - 議事録の中身（`get_note`/`get_file`）は **MCPコネクタ** が担当（Asana 登録はこのスキルでは行わない＝STEP 6） → アカウントログインで自動（MCPはOAuthで自前認証。`login` ツールあり）。
-> - STEP1のフォルダ判定（社内/社外/講話）だけは MCP がフォルダ情報を返さないため、**web.plaud.ai の Bearer トークンで REST API を直接叩く**。これがローカル設定ファイルに必要なトークン。
-> - **このトークン依存は暫定。** 毎回 STEP 1-0 で「公式MCPがフォルダ情報に対応したか」をチェックし、対応が確認でき次第 REST API＋トークンを廃止する（下記「既知の制約」参照）。
-> - **Asana の PATトークンは不要**（MCPコネクタ経由のため）。設定ファイルにはGID対応表のみ保持する。
+> **重要：MCPコネクタ と Plaud のトークンは別物。**
+> - 議事録の中身（`get_note`）は **MCPコネクタ** が担当 → アカウントログインで自動（MCPはOAuthで自前認証。`login` ツールあり）。
+> - フォルダ判定（社内/社外/講話）と長さは MCP が返さないため、`plaud-config.json` の Plaud トークンで **4.0 の API を `plaud-folders.ps1` が読む**（2026-10-29〜。旧 REST と STEP 1-0 の点検は `_archive/SKILL_旧REST_261029.md`）。
+> - Asana はこのスキルでは使わない（STEP 6）。設定ファイルに Asana の節もフォルダ ID の表も要らない（4.0 ではフォルダ名で決める）。
 
 ### 🩺 状態診断（`diagnose.ps1`）
 
@@ -77,62 +76,45 @@ winget install --id GitHub.cli
 gh auth login   # GitHub.com → HTTPS → Login with a web browser
 ```
 
-> **（2026-10-29〜 作業場はリポの clone なので seed は不要＝STEP 7 が無ければ clone する。下は旧方式の記録）** **seedが必要な理由:** 新PCの作業ディレクトリは空であり、空のままSTEP7を実行すると公開サイトを空内容で上書きする事故につながる（STEP7に自動ガードあり＝空に近いwork_dirからのデプロイは中止される）。SETUP.cmd 再実行で `stymism/farman-mtg-site` からサイト一式が作業ディレクトリに複製される。
+> **2026-10-29〜 作業場はリポの clone（`~/.plaud/farman-mtg-site`）なので seed は不要＝STEP 7 が無ければ clone する。**
 
 ### 📁 設定ファイルの場所
 
 各PC毎に独立: `$env:USERPROFILE\.plaud\plaud-config.json`（例: `C:\Users\<user>\.plaud\plaud-config.json`）。トークン期限切れ時は同フォルダ内 `refresh-plaud-token.ps1` で自動更新できる（STEP 1 が期限切れを検知した場合に実行する）。
 
-**OneDrive同期:** 作業ディレクトリ（HTML出力先、index.html）は **OneDrive同期フォルダ** に指定することを強く推奨します。これにより、複数PCからのHTML化・デプロイが一貫性を保ちます。
+**作業ディレクトリ:** 2026-10-29 から GitHub `stymism/farman-mtg-site` の clone（`~/.plaud/farman-mtg-site`）が唯一の正本。OneDrive には置かない（PC の間は git で合わせる）。規則の正本 `plaud_規則.json` と承認の一覧は OneDrive の `右腕AI\00_Resources\`。
 
 ### ⚠️ 既知の制約
 
-### Plaud MCP のフォルダフィルタリング非対応（毎回チェック → 対応され次第RESTを廃止）
+> 旧 REST（`/file/simple/web` の `filetag_id_list`・`/file/detail`・フォルダ ID の表・STEP 1-0 の MCP の点検）は 4.0 で使えないので `_archive/SKILL_旧REST_261029.md` に移した（2026-10-29）。
 
-**2026-08-10 再実測（2026-07-06 / 2026-07-28 から変化なし）：**
-- `list_files` のスキーマに `folder_id` パラメータは**存在しない**（入力は `query`/`date_from`/`date_to`/`page`/`page_size` のみ）
-- `list_files`・`get_file` のレスポンスにもフォルダ情報（`filetag_id_list` 等）は**含まれない**（各件 `id`/`name`/`created_at`/`serial_number`/`start_at`/`duration` ＋ get_fileは `presigned_url`/`source_list`/`note_list`）
-- MCPの認証はOAuth（`login` ツール）で自前処理されるため、**トークンが必要なのはフォルダ判定のRESTだけ**
-- `page_size` は**下限10**。`page_size=5` 等を渡すと `Input should be greater than or equal to 10` で失敗する
+### ✅ Plaud 4.0 のフォルダ判定（2026-10-29〜・これが正）
 
-**→ 現状はフォルダ判定のみ Plaud REST API で `filetag_id_list` を参照する（下記 STEP 1 参照）。ただし毎回 STEP 1-0 のチェックを先に行うこと：**
-
-### ✅ Plaud 4.0 移行後のフォルダ判定（2026-10-29〜・これが正）
-
-Plaud は 2026-10 に 4.0 へ移行した。**旧 API（`/file/simple/web` の `filetag_id_list`）は `status -1800907`「Account migrated to 4.0」で 0 件になり使えない**（古い Web 画面 web.plaud.ai〈plaud-web3〉も「すべてのファイル(0)」になる。新しい画面はデスクトップアプリ 1.4.x と新 Web の「ライブラリ」）。
+Plaud は 2026-10 に 4.0 へ移行した。**旧 API は `status -1800907`「Account migrated to 4.0」で 0 件になり使えない**（古い Web 画面 web.plaud.ai〈plaud-web3〉も「すべてのファイル(0)」。新しい画面はデスクトップアプリ 1.4.x と新 Web〈beta.plaud.ai〉の「ライブラリ」）。
 **フォルダは 4.0 の API で読む: 同じフォルダの `plaud-folders.ps1` を流す**（トークンは画面にも出力にも出さない）:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File "<このスキルのフォルダ>\plaud-folders.ps1" -Out "$env:TEMP\plaud-folders.json"
 # 最後の行: PLAUD_FOLDERS: OK files=N | 未振り分け n / 社外 n / 社内 n / 面接 n / 講話録音 n ...
 ```
-- 中身: ユーザーのトークン（`plaud-config.json` の api_token。失効なら `refresh-plaud-token.ps1`）→ `GET /team-app/workspaces/list` → `POST /user-app/auth/workspace/token/{workspace_id}`（ワークスペースのトークン `data.workspace_token`）→ `GET /file-app/v4/folders/children?node_id=root`（と `&cursor=`）をたどる。ライブラリ直下のフォルダ名がそのまま分類（社内・社外・講話録音・面接・学生発表 …）。システムの「Recordings」（画面の「録音」・`system_folder_type 1`）は **未振り分け**。
-- 録音 1 件は「名前のついた入れ物のノード（type 1）」の下に `file_id` を持つノードがある形。`file_id` はコネクタ（`list_files` の `id`）と同じ（2026-10-29 に 1 件で照合）。
-- 出力 JSON の `folder` を STEP 2 の分類に使う（旧表の「フォルダID含む」は「folder がその名前」と読む）。`name`・`start_ms` も入る。`duration` は入らないので、要るときはコネクタの `list_files` から取る。
+- 中身: ユーザーのトークン（`plaud-config.json` の api_token。失効なら `refresh-plaud-token.ps1`）→ `GET /team-app/workspaces/list` → `POST /user-app/auth/workspace/token/{workspace_id}`（ワークスペースのトークン）→ `GET /file-app/v4/folders/children?node_id=root`（と `&cursor=`）をたどる。ライブラリ直下のフォルダ名がそのまま分類（社内・社外・講話録音・面接・学生発表 …）。システムの「Recordings」（画面の「録音」）は **未振り分け**。
+- 出力 1 件: `file_id`（コネクタの `list_files` の `id` と同じ）・`name`・`folder`・`start_ms`・**`duration_ms`**（長さ）・`node_id`・`version_ms`（ゴミ箱の道具が使う）。
 - **`plaud-folders.ps1` が失敗したら（status が 0 以外・トークンが取れない）、HTML 化・push をせずに止めて報告に 1 行**。題名・参加者・中身から社内/社外を推測しない。
 
-**STEP 1-0（毎回実行）: 公式MCPのフォルダ対応チェック**
-1. `mcp__plaud__list_files`（プラグイン環境では `mcp__plugin_plaud-suite_plaud__list_files`。存在する方を使う）を1ページ（page_size=10）呼び、レスポンスの各アイテムに `filetag_id_list`・`filetag`・`folder` 等のフォルダ情報フィールドが**含まれるか**を確認する（あわせて `list_files` スキーマに `folder_id` パラメータが追加されていないかも見る）
-2. **含まれる場合（対応済み）**: フォルダ判定はMCPレスポンスの値で行い、REST API呼び出しとトークン自動リフレッシュを**スキップ**する。そのうえで、本SKILL.mdからREST依存部分（トークンリフレッシュ・REST判定）を更新・削除し、README.md に変更履歴を追記して、「Plaudトークンが不要になった」ことをユーザーに報告する（`plaud-config.json` の `plaud.api_token`/`email`/`password` は不要になる。Cloudflare設定は引き続き必要）
-3. **含まれない場合（未対応）**: 従来どおりトークン自動チェック→REST APIでのフォルダ判定に進む。完了報告に記載は不要（チェック自体は静かに行う）
+### 規則の正本 `plaud_規則.json`（2026-10-29〜）
+
+命名（naming）・誤字（typos）・社名の表記（aliases）・社員の表記（people）・振り分け（folders）・短い録音の境目（short_recording）・送付版で伏せる語（redact）は、**`%OneDrive%\右腕AI\00_Resources\plaud_規則.json` が唯一の正本**（claude.ai の予定のタスクからは `$HOME/mnt/右腕AI/00_Resources/plaud_規則.json`）。このスキルや設定に写しを作らない。`audit.js` は typos の gate=true を止める（STEP 5.7）。
 
 ### MCPが `Not authenticated` を返すとき（2026-07-28 追記）
 
 Plaud MCPの認証は**RESTトークン（`plaud-config.json`）とは完全に別系統のOAuth**。設定ファイルを直しても復旧しないし、`refresh-plaud-token.ps1` も無関係。`list_files`/`get_note`/`get_current_user` が揃って `Not authenticated. Please login first.` を返したらこれ。
 
 1. **`mcp__plaud__login` を呼ぶ**（ブラウザが開きユーザーがログイン）→ `get_current_user` で `y-ino@farman.jp` が返れば復旧
-   - ⚠️ **`login` は OAuth コールバック用に localhost:8199 を使う**（2026-08-10 判明）。この検証用ローカル静的サーバー（下記「見た目の検証法」）を **8199 で立てていると `Failed to start callback server: port 8199 is in use` でログインできない**。エラー文は「別の `plaud login` が動いているかも」と示唆するが、実際は自分で立てたサーバーが原因のことがある。**検証用サーバーには 8199 を使わない**（例: 8123）。既に8199で立てている場合は `preview_stop` してから `login` する
-2. 切り分け: 他のMCP（Asana `get_me` 等）が応答するならMCP基盤自体は正常で、Plaudの認証だけの問題
-3. **ログインできない／ユーザー不在で進めたい場合のフォールバック（実績あり）**: 議事録本文は `get_note` を使わず REST で取れる。
-   ```
-   GET {api_base}/file/detail/{file_id}   （Authorization: {api_token}）
-     → data.content_list[] から data_type == 'auto_sum_note' を選ぶ
-     → その data_link（S3署名付きURL・有効5分）を GET すると AI要約Markdownが返る
-   ```
-   ⚠️ `data_link` の実体は `ai_content.md.gz` だが **`Invoke-WebRequest` が gzip を自動解凍する**ため、`GzipStream` に通すと `The magic number in GZip header is not correct` で落ちる。**先頭2バイトが `0x1F 0x8B` の時だけ解凍し、それ以外はそのままUTF-8デコードする**分岐を入れること。
+   - ⚠️ **`login` は OAuth コールバック用に localhost:8199 を使う**（2026-08-10 判明）。検証用ローカル静的サーバーを **8199 で立てていると `port 8199 is in use` でログインできない**。**検証用サーバーには 8199 を使わない**（例: 8123）。既に8199で立てている場合は `preview_stop` してから `login` する
+2. 切り分け: 他のMCPが応答するならMCP基盤自体は正常で、Plaudの認証だけの問題
+3. ログインできないときは、その回は HTML 化をしないで報告に 1 行（旧 REST の `/file/detail` の代わりの道は 4.0 で使えない）
 
 ### ⚠️ `get_file` はトランスクリプト全文を返す（呼ぶな・2026-07-28 追記）
-`get_file` のレスポンスは**20万文字規模**（実測206,078文字）になり、トークン上限を超えてツール結果がファイルに退避される。**duration等のメタ情報のために `get_file` を呼んではいけない。**
-→ **duration・filename・start_time は STEP 1 の REST 一覧（`/file/simple/web`）に全て含まれている**ので、そこから取る（`duration` はミリ秒）。
+`get_file` のレスポンスは**20万文字規模**になり、トークン上限を超える。**長さ・名前・日付のために `get_file` を呼ばない。** → `plaud-folders.json` の `duration_ms`・`name`・`start_ms` を使う（コネクタの `list_files` の `duration` でもよい）。
 
 ### get_note の 500 エラー対応（リトライロジック）
 録音後にPlaud側でAI要約を非同期生成するため、アップロード直後は `get_note` が 500 を返すことがある。
@@ -164,7 +146,7 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 
 | 現象 | 何が起きるか |
 |------|------------|
-| **IntersectionObserver が発火しない** | `.reveal` は `opacity:0` のまま、チャートの `data-width`/KPIカウントアップも動かない。「アニメーションが壊れている」と誤診する |
+| **IntersectionObserver が発火しない** | enhance.js の節バー・目次の「今いる節」が動かない。「壊れている」と誤診する（2026-10-29 からページは「ふわっと出る」飾りやカウントアップを持たないので、見えない字にはならない） |
 | **CSS transition が進まない** | `style.width='88%'` を入れても `getBoundingClientRect().width` はpadding分（例:12px）のまま。**計算値ではなく実測値を見ると必ず失敗する** |
 | **横スクロール判定が常に真** | `document.documentElement.scrollWidth > window.innerWidth` は `X > 0` になるので**必ず true**。全要素が「はみ出し」と出る（実例:403要素の偽陽性） |
 | **screenshot が撮れない** | `Screenshot timed out: the Browser pane is not displayed` |
@@ -199,7 +181,7 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 
 2026-07-29時点で、5月〜6/1初期に生成した**15ページが `class="detail-content"` だけで id を持っておらず**、次が全部無効になっていた（`fixid.js` 相当の一括付与で復旧済み）：
 
-> エンティティ強調(`.ent`)・ミニバー(`.mini-bar`)・見出しの🔗アンカー・トップに戻る・FABクラスター・ダークモード・モバイル目次シート・Markdown/PDF出力・既読バッジ(`plaud-read-*`)
+> エンティティ強調(`.ent`)・ミニバー(`.mini-bar`)・見出しの🔗アンカー・トップに戻る・目次・宿題の済の印（当時は FAB・既読バッジも。2026-10-29 に外した）
 
 **誤診しやすい：** enhance.js は **200 OK で読み込まれ、コンソールにエラーも出さず**、ただ静かに return する。「CSSが効いていない」「キャッシュだろう」と誤診しやすい。
 
@@ -229,7 +211,7 @@ preview_start でサーバーを立ててもブラウザペインが画面に表
 
 `audit.js --all` は旧テンプレのページを大量に拾う（2026-07-29 の実績: **94件 / 45ページ**）。これを1ページずつ Edit で直すのは非現実的で、抜けも出る。次の3段で回すと確実かつ冪等：
 
-1. **抽出**: 各ページから「タイトル・セクション見出し・チャートのタイトルと中身・`chart-insight`の有無・indexカードの`data-text`」だけをJSONに吐く。**本文全部は読まない**（コンテキストが尽きる）。
+1. **抽出**: 各ページから「タイトル・セクション見出し・チャートのタイトルと中身・`chart-insight`の有無・`<meta name="entities">`」だけをJSONに吐く（index のカードは 10-29 から `data-text` を持たない。検索の語は `data/keywords.json`）。**本文全部は読まない**（コンテキストが尽きる）。
 2. **パッチJSON**: `{ "file.html": { "entities": "...", "insights": ["…", null], "decisions": ["…"] } }` の形で内容を書く。`null` は「そのチャートは触らない」。
 3. **適用**: JSONを読んで注入するスクリプト。**必ず後ろの要素から挿入する**（前から入れると以降のインデックスがずれる）。既に存在する要素はスキップして冪等にする。
 
@@ -292,20 +274,15 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
   Write-Host "    → git-scm.com から導入し、gh auth login でGitHub認証（初回のみ）" -ForegroundColor Yellow
 }
 
-# [4] 作業ディレクトリ & OneDrive同期
+# [4] 作業ディレクトリ（サイトのリポの clone）と規則の正本（2026-10-29〜）
 if (Test-Path $configPath) {
   $workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-  $exists = Test-Path $workDir
-  $isOneDrive = ($workDir -match 'OneDrive') -or ($null -ne $env:OneDrive -and $workDir.StartsWith($env:OneDrive))
-  if ($exists -and $isOneDrive) {
-    Write-Host "[4] 作業ディレクトリ: ✓ 存在・OneDrive配下（別PCに同期されます）" -ForegroundColor Green
-  } elseif ($exists) {
-    Write-Host "[4] 作業ディレクトリ: ⚠ 存在するがOneDrive配下でない → 別PCに同期されない恐れ" -ForegroundColor Yellow
-  } else {
-    Write-Host "[4] 作業ディレクトリ: ⚠ 未作成（$workDir）" -ForegroundColor Yellow
-    Write-Host "    → STEP1で自動作成しますが、OneDrive配下のパスを推奨します" -ForegroundColor Yellow
-  }
+  if (Test-Path "$workDir\.git") { Write-Host "[4] 作業ディレクトリ: ✓ サイトのリポの clone（$workDir）" -ForegroundColor Green }
+  else { Write-Host "[4] 作業ディレクトリ: ⚠ clone が無い（$workDir）→ STEP 7 が clone する" -ForegroundColor Yellow }
 }
+$rulesPath = Join-Path $env:OneDrive '右腕AI\00_Resources\plaud_規則.json'
+if (Test-Path $rulesPath) { Write-Host "[5] 規則の正本: ✓ $rulesPath" -ForegroundColor Green }
+else { Write-Host "[5] 規則の正本: ✗ 無い（$rulesPath）→ 誤字の関門が動かないので載せない（STEP 5.7 で止まる）" -ForegroundColor Red; $ok = $false }
 
 if (-not $ok) {
   Write-Host "`n⛔ 必須項目（設定ファイル/トークン）が不足しています。上記を解消してから再実行してください。" -ForegroundColor Red
@@ -317,601 +294,238 @@ Write-Host "`n✅ プリフライト完了。処理を続行します。" -Foreg
 **判定ルール（このスキルが守ること）:**
 - **[2] 設定ファイル or Plaudトークンが無い → 即停止**し、`setup-plaud.ps1` の実行をユーザーに案内する
 - **[3] git無し → 警告のみで続行**（デプロイ(STEP7)まで不要。STEP7到達時に未導入なら改めて案内し、デプロイはスキップ）
-- **[4] 作業ディレクトリがOneDrive外/未作成 → 警告**してユーザーに「別PCに同期されないリスク」を明示する。黙って進めない
+- **[4] clone が無い → 警告のみ**（STEP 7 が clone する）
+- **[5] 規則の正本（OneDrive の plaud_規則.json）が無い → 停止**（OneDrive の同期を待つか、場所を確かめる）
 - **[1] スキルファイル**は、スキルが起動できている時点で当該PCに存在する（自己チェック不要）。もし別PCにスキル自体が無ければ `/plaud-html` 自体が呼べないため、その場合はセットアップ節の1行コマンド（`migrate.ps1`）を案内する
 
-### STEP 1: 未HTML化の議事録を特定する（Plaud REST API で社内/社外を自動判定）
+### STEP 1: 載せる録音を決める（file_id で照合・2026-10-29〜）
 
-**前提：Plaud Web上でのフォルダ振り分けは事前に完了しているものとする。**
+**前提: 決めるのは毎日の会議の取り込み（会議取り込み_log の「名前の案・分類・確からしさ・HTML」）と Plaud のフォルダ（本人の操作）。このスキルは推測で決めない。**
 
-**⓪' 4.0 移行後（2026-10-29〜）は、下の REST 一覧の代わりに `plaud-folders.ps1` でフォルダを読む（既知の制約「✅ Plaud 4.0 移行後のフォルダ判定」）。下の `/file/simple/web` の手順は旧 API の記録として残す（-1800907 が返る）。**
-
-**⓪ まず STEP 1-0（既知の制約セクション参照）を実行する：** `mcp__plaud__list_files` のレスポンスにフォルダ情報（`filetag_id_list` 等）が含まれるようになったかをチェック。**対応済みならMCPでフォルダ判定し、以下のREST API＋トークン処理は全てスキップ**（あわせてSKILL.md/README.mdを更新しユーザーに報告）。未対応なら以下へ進む。
-
-Plaud MCP の `list_files` はフォルダ情報を返さないため（2026-07-06実測）、REST API を直接呼び出して `filetag_id_list` でフォルダ判定する。
-
-**⚠️ 別PC対応版 — 設定ファイルから動的に読み込み：**
-
+1. `plaud-folders.ps1` で一覧を取る（上の「Plaud 4.0 のフォルダ判定」。トークンが切れていれば中で `refresh-plaud-token.ps1` が取り直す）。
+2. **載せる候補**＝次のどれか。それ以外は HTML にしない（A-2。`audit.js` も止める）:
+   - folder が `社内`・`社外`・`講話録音`・`学生発表`（本人が振り分けた物）
+   - folder が `未振り分け` で、`00_Resources\plaud_掲載の承認.json` にある物、または会議取り込み_log の確からしさが **高・中** で本人が否と言っていない物（夜の自走は 1 晩 8 本まで・古い順）
+3. **載せない型**（plaud_規則.json の `folders.載せない型`）: 名前が「 - Highlights」「 - 会議議事録」で終わる・file_id が `of_n_note:` で始まる（同じ会議の写し）・面接/面談/入社前・Welcome。folder が `面接`・`ようこそ` も載せない。
+4. **短い録音**（`short_recording`）: `duration_ms` が 600 秒（10 分）未満は、本人が「載せる」と答えた物だけ HTML にする。180 秒未満で要約が無い物はゴミ箱の候補（`plaud-trash.ps1` が一覧を出す。移すのは本人の OK の後）。
+5. **すでに載っているかは file_id で見る**（A-6。題名・日付では照合しない＝同じ日に 2 本ある日・本人が後で題名を変えた録音で間違えるため）:
 ```powershell
-# 1. 設定ファイルを読み込む
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-if (-not (Test-Path $configPath)) {
-  Write-Error "設定ファイルが見つかりません: $configPath"
-  Write-Host "初回セットアップスクリプトを実行してください: .\setup-plaud.ps1" -ForegroundColor Yellow
-  exit 1
-}
-
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$token = $config.plaud.api_token
-$apiBase = $config.plaud.api_base
-$INTERNAL = $config.plaud.folder_ids.internal
-$EXTERNAL = $config.plaud.folder_ids.external
-$KOWA = $config.plaud.folder_ids.kowa
-$MENSETSU = $config.plaud.folder_ids.mensetsu   # 面接=HTML化対象外（無ければ$null）
-
-# 2. 作業ディレクトリをパス展開
-$workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-if (-not (Test-Path $workDir)) { New-Item -ItemType Directory -Path $workDir -Force | Out-Null }
-
-# 3. Plaud APIから一覧取得
-#    ⚠️ 文字化け防止: Invoke-RestMethod は日本語 filename を壊す。必ず Invoke-WebRequest で
-#    生バイトを取り、UTF-8で明示デコードしてから ConvertFrom-Json する。
-$wr = Invoke-WebRequest -Uri "$apiBase/file/simple/web?skip=0&limit=200&is_trash=0&sort_by=start_time&is_desc=true" -Headers @{ Authorization = $token } -UseBasicParsing
-$resp = ([System.Text.Encoding]::UTF8.GetString($wr.RawContentStream.ToArray())) | ConvertFrom-Json
-
-foreach ($f in $resp.data_file_list) {
-    $tags = @($f.filetag_id_list)
-    if     ($tags -contains $INTERNAL) { $folder = 'internal' }
-    elseif ($tags -contains $EXTERNAL) { $folder = 'external' }
-    elseif ($tags -contains $KOWA)     { $folder = 'kowa' }
-    elseif ($MENSETSU -and ($tags -contains $MENSETSU)) { $folder = 'mensetsu' }  # 面接=対象外
-    else   { $folder = 'unclassified' }
-    # ⚠️ start_time はミリ秒。HTMLファイル名の日付は filename 先頭 "MM-DD" を優先（start_timeとズレる録音あり）
-    $fnDate = if ($f.filename -match '^(\d{2})-(\d{2})') { "2026-$($matches[1])-$($matches[2])" } else { ([DateTimeOffset]::FromUnixTimeMilliseconds([int64]$f.start_time)).ToLocalTime().ToString('yyyy-MM-dd') }
-    Write-Output "$($f.id) $folder $fnDate $($f.filename)"
-}
+$site = "$env:USERPROFILE\.plaud\farman-mtg-site"
+$onSite = @{}; foreach ($f in Get-ChildItem $site -Filter '2026-*.html') { $m = [regex]::Match([IO.File]::ReadAllText($f.FullName,[Text.Encoding]::UTF8), '<meta\s+name="plaud-file-id"\s+content="([^"]+)"'); if ($m.Success) { $onSite[$m.Groups[1].Value] = $f.Name } }
+$rec = [IO.File]::ReadAllText("$env:TEMP\plaud-folders.json",[Text.Encoding]::UTF8) | ConvertFrom-Json
+$rec | Where-Object { -not $onSite[$_.file_id] } | Select-Object file_id, folder, name   # ← まだ載っていない録音
 ```
+   載っていない録音の数と、いちばん古い物の日数は `node plaud-pending.js <サイトのフォルダ>` が 1 行で出す（朝の報告の止まりの検知 A-5 と同じ数え方）。
 
-- `filetag_id_list` に社内フォルダID（`c35095465864259130869d88d1b13419`）が含まれる → **🏢 社内**
-- `filetag_id_list` に社外フォルダID（`dd2c13ed...`）が含まれる → **🤝 社外**
-- `filetag_id_list` に講話録音フォルダID（`5010d262...`）が含まれる → **🎤 講話録音**
-- `filetag_id_list` に面接フォルダID（`$MENSETSU` = `7e78f76c...`）が含まれる → **面接 = HTML化対象外**。採用面接は個人情報のため、生成もindex追加もしない。完了報告への記載も不要
-- どれも含まれない → `unclassified`（**未振り分け = 要対応**。スキップし「未分類◯件・要フォルダ分け」と完了報告に**明示**する）
+**題名とファイル名**
+- 題名: 本人が Plaud で名前を付けた物（頭が `MM-DD ` で plaud_規則.json の naming の型に合う物）はその名前を**一字一句そのまま**。Plaud の自動の名前（`会議：…・…` の列挙）のときは、会議取り込み_log の「名前の案」を使う。どちらも typos の gate の語（北斗市→北杜市 など）は正に直す。
+- ファイル名: `2026-MM-DD_<ローマ字>.html`。日付は名前の頭の `MM-DD`（無ければ `start_ms`）。漢字の読みは 1 字ずつ確かめる（禁止例: `中村高校` → `chuo-koko`。正: `nakamura-koko`）。珍しい漢字（碑・髙・﨑 など）は落とさない。読みが分からなければ HTML にする前に本人に聞く。
+- 会議・イベントの種別名（体験受入・研修・冒頭説明 など）は Plaud の原文・本人の名前から取る。推測で書き換えない。
 
-> **⚠️ 社内フォルダIDについて：** 社内ファイルがPlaudに追加されたタイミングで `filetag_id_list` の値を確認し、`$INTERNAL` を更新すること。
+### STEP 2: 社内 / 社外を決める（Plaud のフォルダ名で・推測しない）
 
-既存HTMLとの照合（**日付プレフィックスだけの照合は禁止**）:
-
-> ⚠️ **過去の重大バグ（2026-07-08）:** 「その日付のHTMLが1つでもあれば済」と判定すると、**同じ日に複数MTGがある日**（例: 07-03に録音3件・HTML1件）で未処理分を「済」と誤検知する。必ず**日付ごとに『録音の件数・タイトル』と『実在するHTMLファイル名』を突き合わせる**こと。
-
-```powershell
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-# 既存HTMLを日付順に列挙し、STEP1の録音一覧と「日付単位」で突き合わせる
-Get-ChildItem "$workDir\*.html" | Select-Object -ExpandProperty Name | Sort-Object
-```
-ある日付で「録音N件 > 実在HTML M件」なら未処理が (N−M) 件。タイトル(filename)とHTMLファイル名を1件ずつ対応付け、未HTML化の録音を確定する。
-
-**ファイル名の対応ルール:**
-- Plaud名: `06-01 ファーマン全体MTG` → HTMLファイル名: `2026-06-01_farman-zentai.html`
-- 日付は **filename 先頭の "MM-DD"** を使う（`start_time`はミリ秒で、録音日とファイル名日付がズレる録音がある。HTMLファイル名は**filename日付**基準）
-- 名前はローマ字スネークケースに変換（ファーマン→farman、全体→zentai、井上/田中→inoue-tanaka）
-
-**⚠️ タイトル・固有名詞の忠実転記ルール（厳守）**
-
-HTMLのタイトル・見出し・バッジ・メタタグに記載する全ての固有名詞・イベント名は、**Plaud APIの `filename` フィールドの文字列を一字一句そのままコピーする**。推測・補完・省略・言い換えは一切禁止。
-
-#### 禁止事項（全て過去に実際に発生したエラー）
-
-| 禁止行為 | 悪い例 | 正しい対処 |
-|---------|--------|----------|
-| **漢字の読み間違え** | `中村高校` → `chuo-koko`（中央と混同） | 一字ずつ読みを確認して `nakamura-koko` |
-| **珍しい漢字の省略** | `目黒区碑小学校` → `目黒区小学校`（碑を落とす） | 珍しい漢字こそ特に注意してコピーする |
-| **イベント名の捏造** | Plaud名が「体験受入時の冒頭説明」なのに「体育発表会の冒頭説明」と書く | Plaudの `filename` をそのまま使う。推測は禁止 |
-| **よくある名前への置換** | 実際の名称より「それっぽい名称」で補完する | 「よくある名前」で補完しない |
-
-#### 必ず守る手順
-
-1. Plaud API の `filename` フィールドを **そのまま文字列としてコピー** して HTML タイトルに使う
-2. ローマ字変換（ファイル名生成）の際も `filename` の各字の読みを1文字ずつ確認してから変換する
-3. **珍しい漢字（碑・髙・﨑・彙・鷹 等）は特に注意**。読み方が不確かな漢字が含まれる場合は変換前にユーザーに確認する
-4. 会議・イベントの種別名（「体験受入」「研修」「定例MTG」「冒頭説明」等）は**Plaudの原文から取る**。内容を読んで推測して書き換えない
-5. 疑わしい点が1つでもあれば、HTML生成前にユーザーに「〇〇の読み方・正式名称を確認させてください」と聞く
-
-**⚠️ トークン期限切れ対応（自動再取得が組み込み済み）:**
-
-Plaudトークンは約24時間で失効する（`status: -419 / workspace token expired`）。**`refresh-plaud-token.ps1` が email+password から自動でトークンを再取得**するので、STEP1の冒頭で必ず実行する。
-
-**STEP1の最初に実行（トークン自動チェック→失効してたら自動再取得）：**
-```powershell
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$cfgHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { "$env:USERPROFILE\.claude" }
-$skillDir = @("$cfgHome\plugins\marketplaces\farman-skills\plugins\plaud-suite\skills\plaud-html","$cfgHome\skills\plaud-html") | Where-Object { Test-Path (Join-Path $_ 'refresh-plaud-token.ps1') } | Select-Object -First 1
-$cfg = Get-Content $configPath -Raw | ConvertFrom-Json
-# JWTのexpをデコードして、失効 or 5分以内なら自動再取得
-$needRefresh = $true
-$tok = $cfg.plaud.api_token -replace '^Bearer\s+',''
-if ($tok -and $tok.Contains('.')) {
-  try {
-    $pl = $tok.Split('.')[1]; $pad = $pl.PadRight($pl.Length + (4 - $pl.Length % 4) % 4, '=').Replace('-','+').Replace('_','/')
-    $exp = [int64](([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($pad)) | ConvertFrom-Json).exp)
-    if ((Get-Date).ToUniversalTime() -lt [DateTimeOffset]::FromUnixTimeSeconds($exp - 300).UtcDateTime) { $needRefresh = $false }
-  } catch {}
-}
-if ($needRefresh) {
-  if ($cfg.plaud.email -and $cfg.plaud.password) {
-    Write-Host "トークン失効（または間近）→ 自動再取得します..." -ForegroundColor Yellow
-    & "$skillDir\refresh-plaud-token.ps1"
-    $cfg = Get-Content $configPath -Raw | ConvertFrom-Json   # 再読み込み
-  } else {
-    Write-Host "⚠ トークン失効。email/password未設定のため自動再取得不可。setup-plaud.ps1 で設定してください。" -ForegroundColor Red
-  }
-}
-```
-
-その後 `$cfg.plaud.api_token` を使ってAPIを叩く。**APIが `-419` を返した場合も** `refresh-plaud-token.ps1` を実行して設定を再読込し、リトライする。
-
-> **`refresh-plaud-token.ps1` の仕組み:** `POST {api_base}/auth/access-token`（multipart: `username`/`password`/`client_id=web`/`password_encrypted=false`）でログインし、Set-Cookieの `pld_ut`（JWT）を新トークンとして取得→設定3箇所を更新。**パスワードは平文でOK（RSA暗号化不要）**。ログインは**1時間10回**制限なので失効時のみ呼ぶ。
->
-> **フォールバック（email/password未設定 or ログイン失敗時）:** `web.plaud.ai` でF12→Consoleに次を貼り、ファイルをクリックして `🔑 Token: Bearer eyJ...` を取得し、手動で `$cfg.plaud.api_token` を更新する：
-> ```javascript
-> const o=XMLHttpRequest.prototype.setRequestHeader;XMLHttpRequest.prototype.setRequestHeader=function(n,v){if(n.toLowerCase()==='authorization')console.log('🔑 Token:',v);return o.apply(this,arguments);};
-> ```
-> APIベースURLは `https://api-apne1.plaud.ai`（`/api/v1` は不要）。
-
-### STEP 2: 社内 / 社外を判定する
-
-STEP 1 の `filetag_id_list` の結果を使う。タイトルや参加者名で推測してはならない。
-
-| filetag_id_list の値 | 分類 | テンプレート |
-|---------------------|------|------------|
-| 社内フォルダID含む | 🏢 社内 | 議事録テンプレート（グリーン） |
-| 社外フォルダID含む | 🤝 社外 | 議事録テンプレート（アンバー） |
-| 講話録音フォルダID含む | 🎤 講話録音 | 講話ナレッジテンプレート（インジゴ） |
-| 面接フォルダID含む | 面接 = **HTML化対象外**（生成・index追加せずスキップ・報告不要） | — |
-| どれも含まない | スキップ（**未振り分け＝要対応**・報告に明示） | — |
+| plaud-folders の folder | 分類 | テンプレート |
+|---|---|---|
+| `社内` | 🏢 社内 | 議事録テンプレート（グリーン） |
+| `社外` | 🤝 社外 | 議事録テンプレート（アンバー） |
+| `講話録音`・`学生発表` | 🎤 講話録音 | 講話ナレッジテンプレート（インジゴ） |
+| `面接` | HTML 化しない（報告も不要） | — |
+| `未振り分け` | STEP 1 の 2 に当たる物だけ、会議取り込み_log の「分類」（承認の一覧なら「分類」）で。log の分類とフォルダが食い違えばフォルダを正にし報告に 1 行 | — |
 
 ### STEP 3: 議事録の内容を取得する
 
-未HTML化ファイルそれぞれについて：
-- `get_note` でAI要約（action_items、summary、key_topics）を取得
-- メタ情報（duration・filename・start_time）は **STEP 1 の REST 一覧（`/file/simple/web`）から取る**。**`get_file` は呼ばない**（トランスクリプト全文＝20万文字規模が返りトークン上限を超える。上記「既知の制約」参照）
-- MCPが `Not authenticated` の場合は `mcp__plaud__login`、それも不可なら REST の `/file/detail/{id}` フォールバック（上記「既知の制約」参照）
+- 載せる録音それぞれについて `get_note` で AI 要約（action_items・summary・key_topics）を取る。長さ・名前・日付は `plaud-folders.json` から（`get_file` は呼ばない）。
+- ページの `<meta name="plaud-file-id" content="<file_id>">` に、この録音の file_id を必ず入れる（STEP 4 のテンプレート。無いと STEP 5.7 で止まる）。
+- `get_note` が 500 を返したら最大 3 回まで再試行し、だめならスキップして報告に「⏳ 要約生成中のためスキップ（次回再処理）」（上の「get_note の 500 エラー対応」）。
+- MCP が `Not authenticated` なら上の手順で `login`。
 
-**⚠️ 500エラー時のリトライ：**
-- `get_note` が 500 を返した場合、即座に同じ呼び出しを最大3回まで再試行する
-- 3回とも失敗した場合はスキップして完了報告に記載する（次回実行で再処理される）
+### STEP 4: HTMLファイルを生成する（2026-10-29〜 新しい作り: 共通 CSS 1 本・結論カード・飾り無し）
 
-### STEP 4: HTMLファイルを生成する
+**本人の答え（10-29）: 「飾りを落として、軽さ・崩れなさ・印刷を優先」「宿題の正本は Asana、サイトは映すだけ」。** 見た目は全部 `site.css`（サイトのリポ直下・全ページ共通）が持つ。ページに `<style>` を書くのは「そのページだけの図の形」がある時だけ（数行。`<style id="page-css">`）。旧 102 本も 10-29 にこの作りへ一括変換した（本文の字は変えず・要約段落とヘッダーの議題行だけ外した）。
 
-**必ずフル仕様のギミックを全て組み込むこと（省略・簡略化は禁止）。**
-
-**デザインテーマ:**
-- 🏢 社内 → グリーン系テーマ（ヘッダー `#1b4332`、アクセント `--green-*`）
-- 🤝 社外 → アンバー系テーマ（ヘッダー `#78350f`、アクセント `--amber-*`）
-- 🎤 講話録音 → **インジゴ系テーマ**（ヘッダー `#1e1b4b`、アクセント `--indigo-*`）→ 下記「講話ナレッジテンプレート」参照
+**色（テーマ）は `<body>` のクラスとバッジで決まる（CSS は site.css にある。ページに色の変数を書かない）:**
+- 🏢 社内 → `<body class="th-in">` ＋ `<span class="badge-header-internal">🏢 社内</span>`（緑）
+- 🤝 社外 → `<body class="th-ex">` ＋ `<span class="badge-header-external">🤝 社外</span>`（琥珀）
+- 🎤 講話録音 → `<body class="th-kowa">` ＋ `<span class="badge-header-kowa">🎤 講話録音</span>`（藍）→ 下記「講話ナレッジテンプレート」
+- 図の中の色は `var(--c-300)`（暗い箱の上の明るい差し色）・`var(--c-700)`（白地の上の濃い色）・`var(--green-*)` `var(--amber-*)` `var(--indigo-*)` `var(--gray-*)` が使える（全部 site.css の `:root`）
 
 ---
 
-#### ▼ 必須ビジュアル機能チェックリスト
+#### ▼ 必ず守る形（1 つでも抜けたら NG・STEP 5.7 の audit と下の自己点検で見る）
 
-以下を全て実装すること。1つでも抜けたらNG。
-
-- [ ] `#scroll-progress` スクロールプログレスバー（グロー付き `box-shadow: 0 0 8px`）
-- [ ] `detail-header::after` SVGノイズテクスチャ（feTurbulenceフィルター）
-- [ ] ヒーローパーティクル **5個**（`.hero-particle:nth-child(1〜5)` 各異なるfloatアニメーション）
-- [ ] `badge-header-external/internal::after` パルスリングアニメーション
-- [ ] `floating-toc` フローティング目次（JS自動生成）
-- [ ] `.section-h2` カウンター付き番号ヘッダー（`counter-increment: section-counter`）
-- [ ] `.section-h3` サブヘッダー（左ボーダー付き）
-- [ ] `.decision-box` 結論ボックス（各セクション末尾）
-- [ ] `.chart-container` データビジュアライズ（MTG内容に応じた固有チャート、下記参照）
-- [ ] IntersectionObserver によるチャートアニメーション起動
-- [ ] `.ai-section` + `.ai-list` AIサジェストセクション（アンバー/グリーン背景）
-- [ ] `.actions-section` ToDo（チェックボックス＋コピーボタン）
-- [ ] `#progressBar` 進捗バー（グロー付き）
-- [ ] チェックボックスchecked時の `box-shadow: 0 2px 8px rgba(...)` 
-- [ ] コピーボタン checked/コピー済み時の色変化
-- [ ] 全タスク完了時のコンフェッティ
-- [ ] `read-time-tag` 読了時間の自動計算
-- [ ] IntersectionObserver によるスクロールリビール（`.reveal`）
-- [ ] **本文コンテナが `<div class="detail-content" id="detailContent">`**（id が無いと enhance.js が丸ごと動かない。上記「ハマりどころ」参照）
+- [ ] `<head>` は テンプレのとおり: `site.css?v=2` → `enhance.css?v=10` の順で読む。**Google Fonts（`@import`・`<link>`）は読まない**（1 ページ 1.25MB の通信の 85% だった）。字は `site.css` の `system-ui, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif`。ページで `font-family` を書かない
+- [ ] `<meta name="plaud-file-id">`（録音の印）と `<meta name="entities">`、`<meta name="description">`（一覧のカードの要約。要約の段落を本文に書かない代わり。10-29 に既存 102 本へも前の一覧のカードの要約を入れた）を入れる
+- [ ] ヘッダーは **1 行の帯**（高さ 120px 目安）: 戻る＋パンくず／バッジ＋題名／日付・録音の長さ・読了時間・場所・参加者。**議題の行は書かない**（目次・見出しと重複）。「FARMAN Inc.」の札も書かない
+- [ ] 本文 `<div class="detail-content" id="detailContent">` の**先頭に結論カード `<section class="concl-card" id="summary-card">`**（決まったこと 3〜5 行・宿題・次回）。**要約の段落（200 字）は書かない**（カードが代わり）
+- [ ] 各節の終わりに `.decision-box`（`<strong>結論:</strong> …`）。結論カードの「決まったこと」はこの箱の**最初の 1 文をそのまま**並べる（言い換えない）
+- [ ] **宿題の型は `何を：担当：期限`**（全角の「：」。期限が無ければ `：-`。担当は社員の表記・さん無し。複数は「、」）。結論カードの行（`li.todo-row#todo-<n>`）とページ下の `.action-item[data-todo="<n>"]` の両方に同じ番号 n を付ける（Asana からのリンク先 `#todo-<n>`）。担当が書けない宿題はカードで `担当未定`（赤）
+- [ ] 宿題のチェックボックスは**見るだけ**（`disabled`）。端末に覚えさせない（localStorage 禁止）。済は Asana の済から夜の自走が `data-done="1"` を書く → site.css が ✓ と取り消し線で出す
+- [ ] **数字・棒・円は最初から最後の値で書く**（`style="width:72%"`・数字の字・`stroke-dashoffset` の値）。**ページに `<script>` を書かない**（下の edit-mode.js・enhance.js の 2 行だけ）。IntersectionObserver・数え上げ・`data-width` で伸ばす仕掛けは禁止（印刷・PDF で 0 や空になる元だった）
+- [ ] **字は 12px 以上**（`font-size:11px` 以下を書かない。SVG の `<text>` も `font-size="12"` 以上で、図が縮んでも 12px 以上に見える大きさ）
+- [ ] **飾りは書かない**: 浮かぶ粒（hero-particle）・ノイズ（::after の feTurbulence）・ふわっと出る（.reveal）・脈打つ輪（pulse-ring）・紙吹雪・光る影（`box-shadow:0 0 8px`）・字のグラデーション・上の進み具合の線（#scroll-progress）
+- [ ] 暗い図の箱（`.chart-container`）の中の字は白系のまま（`color` を書かない。濃い字 `var(--gray-700)` などを箱の中で使わない＝暗い背景で読めなくなる）
 
 ---
 
-#### ▼ チャートの種類とバリエーション（必ず最適なものを選ぶ）
+#### ▼ チャートの種類（必ず最適なものを 1〜2 種類・値は最初から書く）
 
-MTGの内容に応じて**最もふさわしいチャートを1〜2種類**選ぶ。同じ議事録に2種類組み合わせると情報密度が増す。以下の中から選択し、独自のコンテンツで具体的に実装すること（プレースホルダーは禁止）。
+MTG の内容に合う図を 1〜2 種類選び、独自の内容で書く（プレースホルダー禁止）。**枠は `<div class="chart-container" id="…"><div class="chart-title">📊 題</div> … <div class="chart-insight">…</div></div>`**。共通の部品（KPI・横棒・縦の棒・時系列）は site.css が持つので**クラスを付けるだけ**。
 
----
-
-**① 棒グラフ（アニメーション縦棒）— 数値を順位付きで比較するとき**
+**① 棒（anim-bar）— 数値を順に比べる**
 ```html
-<div class="chart-container reveal" id="barChart">
-  <div class="chart-title">📊 タイトル</div>
-  <div class="anim-bar-wrap">
-    <div class="anim-bar-label"><span>ラベル</span><span>85%</span></div>
-    <div class="anim-bar-track"><div class="anim-bar-fill" data-width="85"></div></div>
-  </div>
+<div class="anim-bar-wrap">
+  <div class="anim-bar-label"><span>ラベル</span><span>85%</span></div>
+  <div class="anim-bar-track"><div class="anim-bar-fill" style="width:85%"></div></div>
 </div>
 ```
-CSS: `.anim-bar-fill{height:24px;width:0%;border-radius:4px;background:linear-gradient(90deg,var(--amber-500),var(--amber-400));transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 8px rgba(245,158,11,.5);}`
+色を変えるときは `anim-bar-fill amber-fill` / `red-fill`。
 
----
-
-**② 水平棒グラフ（hbar）— 人・品目ごとの量を並列比較するとき**
+**② 横棒（hbar）— 人・品目ごとの量を並べる。説明の字は棒の外（`.hbar-val`）に書く**（棒の中に書くと短い棒で字が切れる。10-29 坂ノ途中で実際に「850円/kg（緑の」で切れていた）
 ```html
 <div class="hbar-row">
-  <div class="hbar-name">ラベル</div>
-  <div class="hbar-track">
-    <div class="hbar-fill col-amber" data-width="72">補足テキスト</div>
-  </div>
+  <div class="hbar-name">玉ねぎスライス</div>
+  <div class="hbar-track"><div class="hbar-fill col-amber" style="width:72%"></div></div>
+  <div class="hbar-val">950円/kg（ケース12kg）</div>
 </div>
 ```
-カラークラス: `col-amber` `col-green` `col-blue` `col-red` `col-purple` `col-pink`  
-CSS: `.hbar-fill{height:32px;width:0%;border-radius:6px;display:flex;align-items:center;padding-left:12px;font-size:12px;font-weight:700;color:white;transition:width 1.2s cubic-bezier(.16,1,.3,1);}`
+色: `col-amber` `col-green` `col-blue` `col-red` `col-purple` `col-pink` `col-indigo` `col-teal`。スマホ（幅 560 以下）では名前→棒→説明の縦積みになる（site.css）。
 
----
-
-**③ ドーナツチャート — 進捗率・割合を1つの数値で示すとき**
+**③ ドーナツ — 進捗率・割合を 1 つの数で**（円周 364。`stroke-dashoffset = 364 × (1 − 割合)` を計算して書く）
 ```html
-<div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
+<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
   <div style="position:relative;width:140px;height:140px;flex-shrink:0;">
     <svg width="140" height="140" viewBox="0 0 140 140">
       <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="16"/>
-      <circle cx="70" cy="70" r="58" fill="none" stroke="url(#dg1)" stroke-width="16"
-        stroke-linecap="round" stroke-dasharray="364" stroke-dashoffset="364"
-        id="donutFill" transform="rotate(-90 70 70)"/>
-      <defs><linearGradient id="dg1" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#fcd34d"/>
-      </linearGradient></defs>
+      <circle cx="70" cy="70" r="58" fill="none" stroke="var(--c-300)" stroke-width="16" stroke-linecap="round" stroke-dasharray="364" stroke-dashoffset="102" transform="rotate(-90 70 70)"/>
     </svg>
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-      <span id="donutPct" style="font-size:28px;font-weight:900;color:white;">0%</span>
-      <span style="font-size:11px;opacity:.7;">達成率</span>
+      <span style="font-size:28px;font-weight:800;">72%</span><span style="font-size:12px;">達成率</span>
     </div>
   </div>
-  <div><!-- 凡例テキスト --></div>
+  <div><!-- 凡例・説明 --></div>
 </div>
 ```
-JS（IntersectionObserver内）:
-```javascript
-const pct = 72; // 実際の数値
-const fill = e.target.querySelector('#donutFill');
-const label = e.target.querySelector('#donutPct');
-const circumference = 364;
-fill.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1)';
-fill.style.strokeDashoffset = circumference - (circumference * pct / 100);
-let cur = 0;
-const timer = setInterval(() => {
-  cur = Math.min(cur + 2, pct);
-  label.textContent = cur + '%';
-  if (cur >= pct) clearInterval(timer);
-}, 20);
-```
 
----
-
-**④ 月別カレンダー表 — 季節性・スケジュール・繁閑を示すとき**
+**④ 月別カレンダー表 — 季節性・繁閑**（横に長いので `overflow-x:auto` の中に `min-width:600px`。札の字も 12px）
 ```html
 <div style="overflow-x:auto;">
   <div style="display:grid;grid-template-columns:90px repeat(12,1fr);gap:3px;min-width:600px;">
-    <div style="font-size:11px;font-weight:700;opacity:.6;padding:6px;">項目</div>
-    <!-- 月ヘッダー: 1月〜12月 -->
-    <div style="font-size:11px;font-weight:700;text-align:center;opacity:.6;padding:6px;">1</div>
-    <!-- ... -->
-    <!-- データ行 -->
+    <div style="font-size:12px;font-weight:700;padding:6px;">項目</div>
+    <div style="font-size:12px;text-align:center;padding:6px;">1</div><!-- …12 -->
     <div style="font-size:12px;font-weight:600;padding:8px 6px;">作物名</div>
-    <div style="background:rgba(245,158,11,.0);border-radius:4px;"></div><!-- 空 -->
-    <div style="background:rgba(245,158,11,.5);border-radius:4px;padding:4px;font-size:10px;text-align:center;">播種</div>
-    <div style="background:rgba(245,158,11,.9);border-radius:4px;padding:4px;font-size:10px;text-align:center;font-weight:700;">最盛期</div>
+    <div></div><div style="background:rgba(255,255,255,.35);border-radius:4px;padding:4px;font-size:12px;text-align:center;">播種</div>
   </div>
 </div>
 ```
 
----
-
-**⑤ レーダーチャート（SVG）— 多軸評価・能力・バランスを示すとき**
+**⑤ レーダー（SVG）— 多軸評価**（多角形の `points` は計算して書く: 中心 (150,150)・半径 100・角度 = 360°×i/軸数 − 90°。軸の名前は `font-size="13"` 以上＝図が 300px より小さく縮んでも 12px 以上）
 ```html
-<svg id="radarChart" viewBox="0 0 300 300" style="max-width:300px;margin:0 auto;display:block;">
-  <defs>
-    <linearGradient id="rg1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f59e0b" stop-opacity=".8"/>
-      <stop offset="100%" stop-color="#fcd34d" stop-opacity=".4"/>
-    </linearGradient>
-  </defs>
-  <!-- 背景グリッド（正六角形、3段） -->
-  <!-- グリッド用ポリゴン（半径100/67/33の3段） -->
-  <!-- 軸ライン（中心→各頂点） -->
-  <!-- データポリゴン（id="radarData" points="..." opacity=".8"） -->
-  <!-- 軸ラベル -->
-</svg>
-```
-JS（IntersectionObserver内）:
-```javascript
-// axes: [{label, value(0-100)}] 6軸まで
-function radarPoints(axes, r, cx, cy) {
-  return axes.map((a, i) => {
-    const angle = (Math.PI * 2 / axes.length) * i - Math.PI / 2;
-    const v = a.value / 100 * r;
-    return [cx + v * Math.cos(angle), cy + v * Math.sin(angle)];
-  }).map(p => p.join(',')).join(' ');
-}
-const axes = [{label:'品質',value:85},{label:'コスト',value:70},{label:'納期',value:92},{label:'安全',value:78},{label:'効率',value:65},{label:'連携',value:88}];
-e.target.querySelector('#radarData').setAttribute('points', radarPoints(axes, 100, 150, 150));
-```
-
----
-
-**⑥ 2×2マトリクス — 重要度×実現可能性・インパクト×工数などで施策を分類するとき**
-```html
-<div style="display:grid;grid-template-columns:auto 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:3px;position:relative;">
-  <!-- ラベル行/列 -->
-  <div></div>
-  <div style="text-align:center;font-size:12px;font-weight:700;padding:8px;color:rgba(255,255,255,.7);">低コスト</div>
-  <div style="text-align:center;font-size:12px;font-weight:700;padding:8px;color:rgba(255,255,255,.7);">高コスト</div>
-  <div style="font-size:12px;font-weight:700;padding:8px;color:rgba(255,255,255,.7);writing-mode:vertical-rl;text-orientation:mixed;">高インパクト</div>
-  <!-- 第1象限: 優先実行 -->
-  <div style="background:rgba(245,158,11,.25);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:16px;min-height:120px;">
-    <div style="font-size:10px;font-weight:700;color:#fcd34d;margin-bottom:8px;">⭐ 優先実行</div>
-    <div style="font-size:12px;line-height:1.6;">・施策A<br>・施策B</div>
-  </div>
-  <!-- 第2象限: 要検討 -->
-  <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px;min-height:120px;">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;">🔍 要検討</div>
-    <div style="font-size:12px;line-height:1.6;">・施策C</div>
-  </div>
-  <div style="font-size:12px;font-weight:700;padding:8px;color:rgba(255,255,255,.7);writing-mode:vertical-rl;">低インパクト</div>
-  <!-- 第3象限: 後回し / 第4象限: 見直し -->
-  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:16px;min-height:120px;">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:8px;">⏸ 後回し</div>
-  </div>
-  <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:16px;min-height:120px;">
-    <div style="font-size:10px;font-weight:700;color:#fca5a5;margin-bottom:8px;">⚠️ 見直し</div>
-  </div>
-</div>
-```
-
----
-
-**⑦ タイムライン・工程表 — プロジェクトの時系列進捗・今後のスケジュールを示すとき**
-```html
-<div class="timeline-flow">
-  <div class="tf-item reveal">
-    <div class="tf-dot"></div>
-    <div class="tf-body">
-      <div class="tf-date">2026年6月</div>
-      <div class="tf-title">フェーズ1: 調査・要件定義</div>
-      <div class="tf-desc">説明テキスト。担当: 瀬戸山</div>
-      <div class="tf-status tf-done">✅ 完了</div>
-    </div>
-  </div>
-  <div class="tf-item reveal">
-    <div class="tf-dot tf-active"></div>
-    <div class="tf-body">
-      <div class="tf-date">2026年7月</div>
-      <div class="tf-title">フェーズ2: 実装</div>
-      <div class="tf-desc">説明テキスト</div>
-      <div class="tf-status tf-progress">🔄 進行中</div>
-    </div>
-  </div>
-</div>
-```
-CSS:
-```css
-.timeline-flow{position:relative;padding-left:32px;}
-.timeline-flow::before{content:'';position:absolute;left:10px;top:8px;bottom:8px;width:2px;background:linear-gradient(to bottom,var(--amber-500),rgba(245,158,11,.1));}
-.tf-item{position:relative;margin-bottom:28px;display:flex;gap:20px;}
-.tf-dot{position:absolute;left:-27px;top:4px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);flex-shrink:0;}
-.tf-dot.tf-active{background:var(--amber-500);border-color:var(--amber-400);box-shadow:0 0 10px rgba(245,158,11,.6);}
-.tf-date{font-size:11px;opacity:.6;font-weight:600;letter-spacing:.05em;margin-bottom:4px;}
-.tf-title{font-size:15px;font-weight:700;margin-bottom:6px;}
-.tf-desc{font-size:13px;opacity:.75;line-height:1.6;}
-.tf-status{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-top:8px;}
-.tf-done{background:rgba(16,185,129,.2);color:#6ee7b7;}
-.tf-progress{background:rgba(245,158,11,.2);color:#fcd34d;}
-```
-
----
-
-**⑧ KPIカードグリッド — 複数の重要数値を一覧で見せるとき**
-```html
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-top:16px;">
-  <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:20px 16px;text-align:center;">
-    <div style="font-size:32px;font-weight:900;color:var(--amber-300);line-height:1;" id="kpi1">0</div>
-    <div style="font-size:11px;opacity:.6;margin-top:6px;letter-spacing:.05em;">対象農家数</div>
-    <div style="font-size:12px;color:#6ee7b7;margin-top:4px;">▲ 12%</div>
-  </div>
-  <!-- 繰り返し。id="kpi2"、id="kpi3" ... -->
-</div>
-```
-JS（IntersectionObserver内でカウントアップ）:
-```javascript
-[{id:'kpi1',to:156},{id:'kpi2',to:32},{id:'kpi3',to:89}].forEach(({id,to})=>{
-  let n=0; const el=e.target.querySelector('#'+id);
-  const step=Math.max(1,Math.floor(to/40));
-  const t=setInterval(()=>{n=Math.min(n+step,to);el.textContent=n.toLocaleString();if(n>=to)clearInterval(t);},30);
-});
-```
-
----
-
-**⑨ フロー図（SVGベース）— 意思決定・プロセス・システム構成を示すとき**
-```html
-<svg viewBox="0 0 600 280" style="width:100%;max-width:600px;margin:0 auto;display:block;">
-  <defs>
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L8,3 Z" fill="rgba(245,158,11,.8)"/>
-    </marker>
-  </defs>
-  <!-- ボックス -->
-  <rect x="20" y="110" width="120" height="50" rx="10" fill="rgba(245,158,11,.2)" stroke="rgba(245,158,11,.6)" stroke-width="1.5"/>
-  <text x="80" y="132" text-anchor="middle" fill="white" font-size="12" font-family="Noto Sans JP" font-weight="700">入力</text>
-  <text x="80" y="150" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="10" font-family="Noto Sans JP">データ収集</text>
-  <!-- 矢印 -->
-  <line x1="140" y1="135" x2="195" y2="135" stroke="rgba(245,158,11,.6)" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <!-- 菱形（判断） -->
-  <polygon points="240,100 290,135 240,170 190,135" fill="rgba(99,102,241,.2)" stroke="rgba(99,102,241,.6)" stroke-width="1.5"/>
-  <text x="240" y="139" text-anchor="middle" fill="white" font-size="10" font-family="Noto Sans JP" font-weight="700">判定</text>
-  <!-- ... 続きのノード ... -->
+<svg viewBox="0 0 300 300" style="max-width:300px;width:100%;margin:0 auto;display:block;overflow:visible">
+  <!-- 背景の多角形 3 段・軸の線 -->
+  <polygon points="150,65 232,103 …" fill="rgba(252,211,77,.35)" stroke="var(--c-300)"/>
+  <text x="150" y="38" text-anchor="middle" fill="#fff" font-size="13">品質</text>
 </svg>
 ```
 
----
-
-**⑩ 積み上げ棒グラフ — 構成比の変化・複数要素の内訳を示すとき**
+**⑥ 2×2 マトリクス — 施策の分類**（外側に `class="matrix-grid"` を付ける＝スマホ〈幅 640 以下〉で 1 列に積む）
 ```html
-<div style="display:flex;align-items:flex-end;gap:20px;height:180px;padding-top:20px;">
-  <!-- 1本の棒 = 1年/1期 -->
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
-    <div style="width:100%;display:flex;flex-direction:column;gap:2px;height:140px;justify-content:flex-end;">
-      <div class="stack-seg" data-height="25" style="background:#6366f1;border-radius:4px 4px 0 0;height:0;transition:height 1s cubic-bezier(.16,1,.3,1);" title="テクノロジー: 25%"></div>
-      <div class="stack-seg" data-height="45" style="background:#f59e0b;height:0;transition:height 1s cubic-bezier(.16,1,.3,1) .1s;" title="慣行農業: 45%"></div>
-      <div class="stack-seg" data-height="30" style="background:#10b981;border-radius:0 0 4px 4px;height:0;transition:height 1s cubic-bezier(.16,1,.3,1) .2s;" title="有機農業: 30%"></div>
-    </div>
-    <div style="font-size:11px;opacity:.7;margin-top:8px;">2024</div>
-  </div>
-  <!-- 繰り返し -->
-</div>
-<!-- 凡例 -->
-<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
-  <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><div style="width:10px;height:10px;background:#6366f1;border-radius:2px;"></div>テクノロジー</div>
+<div class="matrix-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+  <div style="background:rgba(255,255,255,.14);border-radius:8px;padding:12px;"><div style="font-size:12px;font-weight:700;color:var(--c-300);">⭐ 優先実行（効果大・手間小）</div><div style="font-size:13px;">・施策A</div></div>
+  <!-- 要検討・後回し・見直し -->
 </div>
 ```
-JS（IntersectionObserver内）:
-```javascript
-e.target.querySelectorAll('.stack-seg').forEach(seg => {
-  seg.style.height = (parseInt(seg.dataset.height) / 100 * 140) + 'px';
-});
-```
+軸の名前は縦書き（`writing-mode:vertical-rl`）にしない（スマホで 1 字ずつ折れる）。象限の見出しに軸を書く。
 
----
-
-**⑪ バブルチャート（ポジショニングマップ）— 競合比較・施策の優先度マッピングをするとき**
+**⑦ 時系列（tl-flow）— 予定・工程**（site.css。子の順は `tl-dot → tl-time → tl-title → tl-desc → tl-status` 固定。崩すと見出しと本文が入れ替わる・07-28 に発生）
 ```html
-<div style="position:relative;width:100%;aspect-ratio:4/3;background:rgba(255,255,255,.04);border-radius:12px;border:1px solid rgba(255,255,255,.1);">
-  <!-- 軸ラベル -->
-  <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;opacity:.5;">← コスト低い　　コスト高い →</div>
-  <div style="position:absolute;top:50%;left:8px;transform:translateY(-50%) rotate(-90deg);font-size:11px;opacity:.5;white-space:nowrap;">← 効果小　効果大 →</div>
-  <!-- バブル: left=X軸位置%, bottom=Y軸位置%, width=重要度/規模 -->
-  <div style="position:absolute;left:20%;bottom:70%;transform:translate(-50%,50%);">
-    <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,158,11,.6);border:2px solid rgba(245,158,11,.9);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;text-align:center;cursor:default;" title="施策A: 詳細説明">A</div>
-  </div>
-  <!-- グリッド線（任意） -->
-  <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.08);"></div>
-  <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(255,255,255,.08);"></div>
+<div class="tl-flow">
+  <div class="tl-item"><div class="tl-dot tl-active"></div><div class="tl-time">9月13日</div><div class="tl-title">団体貸切</div><div class="tl-desc">説明</div><div class="tl-status tl-prog">🔄 直前準備</div></div>
+</div>
+```
+状態: `tl-done`（済）・`tl-prog`（進行中）・`tl-todo`（予定）。**フェーズを横に 3 列並べる工程表は作らない**（幅 390 で 1 字ずつ縦に折れた・05-15 ユニバ）。段の並びは tl-flow か ⑫ を使う。
+
+**⑧ KPI カード — 複数の数値の一覧**（site.css）
+```html
+<div class="kpi-grid">
+  <div class="kpi-card"><div><span class="kpi-num">500</span><span class="kpi-unit">万円</span></div><div class="kpi-label">新規導入したドローン</div></div>
 </div>
 ```
 
----
-
-**⑫ ステップ進捗バー（フェーズ表示）— プロジェクトのフェーズや手順を示すとき**
+**⑨ 流れ図（SVG）— 意思決定・因果・仕組み**（**`<div class="svg-scroll">` で包み、svg に `style="min-width:600px"`**＝スマホでは縮めず横にずらして見る。10-29 三菱地所の因果図が幅 390 で字 5px 相当に縮んでいた。字は `font-size="12"` 以上・`font-family` は書かない）
 ```html
-<div style="display:flex;align-items:center;gap:0;margin:20px 0;overflow-x:auto;padding-bottom:8px;">
-  <!-- ステップ -->
-  <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
-    <div style="width:44px;height:44px;border-radius:50%;background:var(--amber-500);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;font-size:16px;box-shadow:0 0 12px rgba(245,158,11,.5);">1</div>
-    <div style="font-size:11px;margin-top:6px;font-weight:700;color:var(--amber-300);text-align:center;max-width:72px;">完了済み</div>
-  </div>
-  <!-- コネクター -->
-  <div style="flex:1;height:3px;background:linear-gradient(90deg,var(--amber-500),var(--amber-300));min-width:32px;max-width:80px;"></div>
-  <!-- ステップ2（進行中） -->
-  <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
-    <div style="width:44px;height:44px;border-radius:50%;background:rgba(245,158,11,.2);border:3px solid var(--amber-400);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--amber-300);font-size:16px;">2</div>
-    <div style="font-size:11px;margin-top:6px;font-weight:600;color:rgba(255,255,255,.7);text-align:center;max-width:72px;">進行中</div>
-  </div>
-  <!-- コネクター（未着手） -->
-  <div style="flex:1;height:3px;background:rgba(255,255,255,.1);min-width:32px;max-width:80px;"></div>
-  <!-- ステップ3（未着手） -->
-  <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
-    <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:900;color:rgba(255,255,255,.3);font-size:16px;">3</div>
-    <div style="font-size:11px;margin-top:6px;font-weight:500;color:rgba(255,255,255,.4);text-align:center;max-width:72px;">未着手</div>
-  </div>
-</div>
-```
-
----
-
-**⑬ ゲージ（半円メーター）— 単一の達成度・スコアを針/弧で示すとき**
-```html
-<div style="text-align:center;position:relative;z-index:1;">
-  <svg width="220" height="125" viewBox="0 0 220 125">
-    <path d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="16" stroke-linecap="round"/>
-    <path id="gaugeArc" d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="url(#gg)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
-    <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#fcd34d"/></linearGradient></defs>
-    <text x="110" y="100" text-anchor="middle" fill="white" font-size="34" font-weight="900" id="gaugeVal" font-family="Noto Sans JP">0</text>
-    <text x="110" y="118" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="11" font-family="Noto Sans JP">達成スコア</text>
+<div class="svg-scroll">
+  <svg viewBox="0 0 640 280" style="min-width:600px">
+    <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 Z" fill="rgba(255,255,255,.8)"/></marker></defs>
+    <rect x="20" y="110" width="130" height="54" rx="10" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.5)"/>
+    <text x="85" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">入力</text>
+    <text x="85" y="153" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="12">データ収集</text>
+    <line x1="150" y1="137" x2="200" y2="137" stroke="rgba(255,255,255,.7)" stroke-width="1.5" marker-end="url(#arrow)"/>
   </svg>
 </div>
 ```
-JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.style.transition='stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1)';arc.style.strokeDashoffset=283-(283*pct/100);var gv=e.target.querySelector('#gaugeVal');var n=0;var t=setInterval(function(){n=Math.min(n+2,pct);gv.textContent=n;if(n>=pct)clearInterval(t);},20);`（半円の弧長≒283）
 
----
-
-**⑭ ブレットチャート（目標 vs 実績）— 1指標の「目標線・達成帯・実績」を1本で示すとき**
+**⑩ 積み上げ棒 — 構成の変化**（高さは px で書く。140px が 100%）
 ```html
-<div class="hbar-row"><div class="hbar-name">乾燥(t)</div>
-  <div class="hbar-track" style="position:relative;">
-    <div class="hbar-fill col-amber" data-width="77">実績 6.0t</div>
-    <div style="position:absolute;top:-3px;bottom:-3px;left:100%;width:3px;background:#fff;border-radius:2px;" title="目標 7.8t"></div>
+<div style="display:flex;align-items:flex-end;gap:16px;height:180px;">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+    <div style="width:100%;display:flex;flex-direction:column;gap:2px;height:140px;justify-content:flex-end;">
+      <div style="height:35px;background:#6366f1;border-radius:4px 4px 0 0;" title="テクノロジー 25%"></div>
+      <div style="height:63px;background:#f59e0b;" title="慣行 45%"></div>
+    </div>
+    <div style="font-size:12px;margin-top:6px;">2024</div>
   </div>
 </div>
 ```
-※ 目標位置に縦線マーカーを置き、`data-width`で実績バーを伸ばす。複数指標を縦に並べると「目標到達状況」が一望できる。
 
----
+**⑪ バブル（ポジショニング）**: 位置は `left/bottom` の % で書く。バブルの中の字・軸の字は 12px 以上。
 
-**⚡ チャート共通の体裁ルール（強化）：**
-- **必ず `chart-insight`（インサイト注釈）を1つ添える**（「一番言いたい数字」を言語化。上記テンプレ参照）
-- 単位・凡例・出典を明記。色は意味で割り当て（達成=緑 / 注意=赤 / 中立=アンバー）
-- 数値は等幅（enhance.cssで全体に`tabular-nums`適用済み）
-- **タイムライン(`.tl-item`)の子要素の順序は `tl-dot → tl-time → tl-title → tl-desc → tl-status` で固定。** 順序を崩すと見出しと本文が入れ替わって表示される（2026-07-28に実際に発生）
+**⑫ ステップ（段の進み）**: 丸と線を横に並べ、外側に `overflow-x:auto`。札の字は 12px 以上・`max-width:84px`。
 
-**✅ 生成後の自己点検（必須・手書きチェックでは漏れる）**
+**⑬ ゲージ（半円）**: 弧の長さ 283。`stroke-dashoffset = 283 × (1 − 割合)` を書く。中の数字は字で書く。
 
-チャート枚数が増えると「1枚だけ `chart-insight` を付け忘れる」「1項目だけ要素順が違う」が必ず起きる。**目視ではなくDOMで機械的に点検する**（ローカルサーバー＋`javascript_tool`。再生成後は `?cb=N` でキャッシュバストすること）：
+**⑭ ブレット（目標と実績）**: ② の横棒の `.hbar-track` の中に `<div class="hbar-target" style="left:100%" title="目標 7.8t"></div>`。
 
+**⚡ 図の共通の決まり:**
+- **必ず `chart-insight`（一番言いたい数字を 1 文で）を 1 つ添える**
+- 単位・凡例・出典を書く。色は意味で（済・良＝緑／注意＝赤／中立＝テーマ色）
+- 幅 390 で崩れないこと（下の自己点検で横スクロール 0・はみ出し 0・12px 未満 0）
+
+**✅ 生成後の自己点検（必須・目で見るだけだと漏れる）**: ローカルの静的サーバーで開き、幅 390 と 1280 で次を `javascript_tool` で読む（再生成後は `?cb=N`）。
 ```javascript
-({
-  // chart-insight が無いチャートを列挙 → 空配列でなければNG
-  chartsWithoutInsight: Array.from(document.querySelectorAll('.chart-container'))
-    .filter(c => !c.querySelector('.chart-insight')).map(c => c.id || '(no-id)'),
-  // タイムラインの要素順 → 全て 'dot>time>title>desc>status' であること
-  tlOrder: Array.from(document.querySelectorAll('.tl-item')).map(it =>
-    Array.from(it.children).map(c => c.className.replace('tl-','').split(' ')[0]).join('>')),
-  // 必須パーツの員数チェック
-  sections: document.querySelectorAll('.section-h2').length,
-  tocItems: document.querySelectorAll('#tocList .toc-item').length,      // sections と一致すること
-  decisions: document.querySelectorAll('.decision-box').length,          // 原則 sections と同数以上
-  particles: document.querySelectorAll('.hero-particle').length,         // 必ず 5
-  aiItems: document.querySelectorAll('.ai-list li').length,              // 4〜6
-  todos: document.querySelectorAll('#actionList .action-item').length,   // total= と一致すること
-  backLink: getComputedStyle(document.querySelector('.back-link')).whiteSpace, // 'nowrap'
-  relatedHrefs: Array.from(document.querySelectorAll('.related-card')).map(a => a.getAttribute('href'))
-})
+(() => {
+  const vis = el => el.checkVisibility ? el.checkVisibility() : true;
+  const small = [...document.querySelectorAll('#detailContent *, .detail-header *')].filter(el => vis(el) && el.childNodes.length && [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim()) && parseFloat(getComputedStyle(el).fontSize) < 12).map(el => el.textContent.trim().slice(0, 20));
+  return {
+    hscroll: document.documentElement.scrollWidth > innerWidth,           // false であること
+    small,                                                                // 空であること（SVG は縮みも見る）
+    card: !!document.querySelector('#detailContent > .concl-card'),       // true
+    todosMatch: document.querySelectorAll('.todo-row').length === document.querySelectorAll('.action-item').length,
+    noOwner: [...document.querySelectorAll('.td-who.td-none')].length,    // 0 が望ましい（担当を書く）
+    chartsWithoutInsight: [...document.querySelectorAll('.chart-container')].filter(c => !c.querySelector('.chart-insight')).map(c => c.id),
+    scripts: [...document.querySelectorAll('script')].map(s => s.src.split('/').pop()), // edit-mode.js・enhance.js の 2 つだけ
+    fonts: [...document.querySelectorAll('link,style')].some(e => /fonts\.googleapis/.test(e.outerHTML)), // false
+    relatedHrefs: [...document.querySelectorAll('.related-card')].map(a => a.getAttribute('href'))
+  };
+})()
 ```
-`relatedHrefs` は**実ファイルの存在をPowerShellの `Test-Path` で必ず確認**する（存在しない過去MTGへリンクする事故を防ぐ）。
+`relatedHrefs` は実ファイルがあるかを `Test-Path` で必ず確かめる。
 
 **チャート選択ガイド:**
 
 | MTGの内容 | 推奨チャート |
 |---------|------------|
-| 数値・量の比較 | ① 棒グラフ or ② 水平棒グラフ |
-| 進捗率・達成率 | ③ ドーナツ or ⑫ ステップ進捗バー |
+| 数値・量の比較 | ① 棒 or ② 横棒 |
+| 進捗率・達成率 | ③ ドーナツ or ⑫ ステップ |
 | 季節性・カレンダー | ④ 月別カレンダー表 |
-| 多軸評価・バランス | ⑤ レーダーチャート |
-| 施策の優先度分類 | ⑥ 2×2マトリクス |
-| 工程・スケジュール | ⑦ タイムライン |
-| 複数KPI・数値サマリー | ⑧ KPIカードグリッド |
-| プロセス・意思決定フロー | ⑨ フロー図 |
-| 構成比の変化 | ⑩ 積み上げ棒グラフ |
-| ポジショニング・競合比較 | ⑪ バブルチャート |
-| フェーズ・手順 | ⑫ ステップ進捗バー |
-| 単一スコア・達成度メーター | ⑬ ゲージ（半円） |
-| 目標 vs 実績 | ⑭ ブレットチャート |
-
-**組み合わせ推奨:** 1つのMTGに2種類まで使うと情報密度が上がる。例: ドーナツ（進捗全体）+ 水平棒グラフ（担当者別内訳）。
+| 多軸評価・バランス | ⑤ レーダー |
+| 施策の優先度分類 | ⑥ 2×2 マトリクス |
+| 工程・スケジュール | ⑦ 時系列 |
+| 複数KPI・数値サマリー | ⑧ KPI カード |
+| プロセス・意思決定・因果 | ⑨ 流れ図 |
+| 構成比の変化 | ⑩ 積み上げ棒 |
+| ポジショニング・競合比較 | ⑪ バブル |
+| 単一スコア | ⑬ ゲージ |
+| 目標 vs 実績 | ⑭ ブレット |
 
 ---
 
@@ -920,230 +534,121 @@ JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.s
 ```html
 <!DOCTYPE html>
 <html lang="ja"><head>
-  <script src="noanim.js?v=1"></script>
   <meta charset="UTF-8"><link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="plaud-file-id" content="{Plaud の file_id。plaud-folders.ps1 の出力・list_files の id}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
-  <link rel="stylesheet" href="enhance.css?v=9">
-  <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
-:root{
-  /* 社外: --amber-900:#78350f; --amber-500:#f59e0b; ... */
-  /* 社内: --green-900:#1b4332; --green-500:#40916c; ... */
-  --gray-900:#111827;--gray-700:#374151;--gray-200:#e5e7eb;--gray-100:#f3f4f6;
-  --bg:#fdf8f0; /* 社内は #f0fdf4 */
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.08);--shadow-md:0 4px 16px rgba(0,0,0,0.10);--shadow-lg:0 8px 32px rgba(0,0,0,0.14);
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-#scroll-progress{position:fixed;top:0;left:0;width:0%;height:3px;
-  background:linear-gradient(90deg,var(--amber-500),var(--amber-400),#fde68a);
-  z-index:9999;transition:width .1s linear;box-shadow:0 0 8px rgba(245,158,11,.6);}
-html{scroll-behavior:smooth;}
-body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--gray-900);line-height:1.8;font-size:15px;overflow-x:hidden;}
-
-@keyframes float{0%,100%{transform:translateY(0) rotate(0)}33%{transform:translateY(-18px) rotate(5deg)}66%{transform:translateY(-8px) rotate(-3deg)}}
-@keyframes float2{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px) scale(1.04)}}
-@keyframes float3{0%,100%{transform:translateY(0) rotate(0)}40%{transform:translateY(-14px) rotate(-4deg)}}
-@keyframes float4{0%,100%{transform:translateY(0) scale(1)}60%{transform:translateY(-10px) scale(1.06)}}
-@keyframes float5{0%,100%{transform:translateY(0) rotate(0)}33%{transform:translateY(-20px) rotate(6deg)}}
-@keyframes pulse-ring{0%{transform:scale(.8);opacity:1}100%{transform:scale(2.2);opacity:0}}
-@keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
-@keyframes confetti-sway{0%,100%{transform:translateX(0)}50%{transform:translateX(30px)}}
-.confetti-piece{position:fixed;top:-10px;z-index:9998;pointer-events:none;
-  animation:confetti-fall linear forwards,confetti-sway ease-in-out infinite alternate;}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;}}
-
-.hero-particle{position:absolute;border-radius:50%;opacity:.15;pointer-events:none;}
-.hero-particle:nth-child(1){width:120px;height:120px;background:radial-gradient(circle,rgba(245,158,11,.8),transparent);top:12%;left:5%;animation:float 7s ease-in-out infinite;}
-.hero-particle:nth-child(2){width:80px;height:80px;background:radial-gradient(circle,rgba(252,211,77,.9),transparent);bottom:18%;right:6%;animation:float2 9s ease-in-out infinite;opacity:.2;}
-.hero-particle:nth-child(3){width:200px;height:200px;background:radial-gradient(circle,rgba(120,53,15,.4),transparent);bottom:-20%;right:0%;animation:float3 11s ease-in-out infinite;opacity:.12;}
-.hero-particle:nth-child(4){width:55px;height:55px;background:radial-gradient(circle,rgba(253,230,138,.9),transparent);top:42%;left:55%;animation:float4 5s ease-in-out infinite 2s;opacity:.18;}
-.hero-particle:nth-child(5){width:40px;height:40px;background:radial-gradient(circle,rgba(245,158,11,1),transparent);top:72%;left:24%;animation:float5 6s ease-in-out infinite 1s;opacity:.25;}
-
-.detail-header{background:radial-gradient(ellipse at 15% 50%,rgba(180,83,9,.5) 0%,transparent 55%),radial-gradient(ellipse at 85% 10%,rgba(245,158,11,.25) 0%,transparent 50%),#78350f;color:white;position:relative;overflow:hidden;padding:52px 48px 44px;}
-.detail-header::after{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");opacity:.3;pointer-events:none;}
-
-.badge-header-external{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fde68a;font-size:12px;font-weight:700;padding:4px 14px;border-radius:999px;position:relative;}
-.badge-header-external::after{content:'';position:absolute;inset:-3px;border-radius:999px;border:2px solid rgba(245,158,11,.5);animation:pulse-ring 2.5s ease-out infinite;}
-.badge-header-internal{display:inline-flex;align-items:center;gap:5px;background:rgba(64,145,108,.2);border:1px solid rgba(64,145,108,.4);color:#86efac;font-size:12px;font-weight:700;padding:4px 14px;border-radius:999px;position:relative;}
-.badge-header-internal::after{content:'';position:absolute;inset:-3px;border-radius:999px;border:2px solid rgba(64,145,108,.5);animation:pulse-ring 2.5s ease-out infinite;}
-
-.back-link{display:inline-flex;align-items:center;gap:6px;color:rgba(255,255,255,.65);font-size:13px;text-decoration:none;margin-bottom:24px;transition:all .2s;padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);white-space:nowrap;}
-.back-link:hover{color:white;text-decoration:none;background:rgba(255,255,255,.14);transform:translateX(-3px);}
-
-.floating-toc{position:fixed;right:24px;top:50%;transform:translateY(-50%);width:200px;background:rgba(255,255,255,.95);border-radius:14px;padding:16px;box-shadow:var(--shadow-lg);backdrop-filter:blur(12px);z-index:400;}
-.floating-toc h4{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--gray-400);text-transform:uppercase;margin-bottom:10px;}
-.toc-list{list-style:none;}
-.toc-item a{display:block;font-size:12px;color:var(--gray-600);padding:4px 8px;border-radius:6px;transition:all .15s;text-decoration:none;line-height:1.4;}
-.toc-item a:hover{background:var(--gray-100);color:var(--gray-900);}
-.toc-item.active a{background:var(--amber-50,#fffbeb);color:var(--amber-700,#b45309);font-weight:700;}
-@media(max-width:1280px){.floating-toc{display:none;}}
-
-.detail-content{max-width:860px;margin:0 auto;padding:48px 40px 80px;counter-reset:section-counter;}
-.section-h2{font-size:22px;font-weight:900;color:var(--gray-900);margin:52px 0 20px;padding-bottom:12px;border-bottom:2px solid var(--gray-200);display:flex;align-items:center;gap:14px;counter-increment:section-counter;}
-.section-h2::before{content:counter(section-counter,decimal-leading-zero);font-size:13px;font-weight:700;color:white;background:var(--amber-500);border-radius:6px;padding:2px 10px;letter-spacing:.02em;flex-shrink:0;}
-.section-h3{font-size:16px;font-weight:700;color:var(--amber-800,#92400e);margin-top:28px;padding-left:14px;border-left:3px solid var(--amber-300,#fcd34d);}
-.decision-box{background:linear-gradient(135deg,var(--amber-50,#fffbeb),rgba(254,243,199,.5));border:1.5px solid var(--amber-200,#fde68a);border-radius:12px;padding:16px 20px;margin-top:20px;font-size:14px;}
-
-.chart-container{background:linear-gradient(135deg,#78350f,#92400e);border-radius:16px;padding:28px;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(120,53,15,.35);margin:32px 0;}
-.chart-container::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 0%,rgba(252,211,77,.1) 0%,transparent 60%);}
-.chart-title{font-size:15px;font-weight:700;margin-bottom:20px;position:relative;z-index:1;display:flex;align-items:center;gap:8px;}
-.anim-bar-wrap{margin-bottom:14px;position:relative;z-index:1;}
-.anim-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;opacity:.85;}
-.anim-bar-track{background:rgba(255,255,255,.15);border-radius:4px;height:24px;overflow:hidden;}
-.anim-bar-fill{height:100%;width:0%;border-radius:4px;background:linear-gradient(90deg,var(--amber-500,#f59e0b),var(--amber-400,#fbbf24));transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 8px rgba(245,158,11,.5);}
-
-.hbar-section{margin:32px 0;}
-.hbar-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
-.hbar-name{font-size:13px;font-weight:600;min-width:80px;text-align:right;flex-shrink:0;}
-.hbar-track{flex:1;background:var(--gray-100);border-radius:6px;overflow:hidden;height:32px;}
-.hbar-fill{height:100%;width:0%;border-radius:6px;display:flex;align-items:center;padding-left:12px;font-size:12px;font-weight:700;color:white;transition:width 1.2s cubic-bezier(.16,1,.3,1);}
-.col-amber{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
-.col-green{background:linear-gradient(90deg,#10b981,#34d399);}
-.col-blue{background:linear-gradient(90deg,#3b82f6,#60a5fa);}
-.col-red{background:linear-gradient(90deg,#ef4444,#f87171);}
-.col-purple{background:linear-gradient(90deg,#8b5cf6,#a78bfa);}
-.col-pink{background:linear-gradient(90deg,#ec4899,#f472b6);}
-.col-indigo{background:linear-gradient(90deg,#6366f1,#818cf8);}
-.col-teal{background:linear-gradient(90deg,#14b8a6,#2dd4bf);}
-
-.ai-section{background:linear-gradient(135deg,#fffbeb,rgba(254,243,199,.4));border:1.5px solid var(--amber-300,#fcd34d);border-radius:14px;padding:24px 28px;margin:32px 0;counter-reset:ai-counter;}
-.ai-title{font-size:15px;font-weight:700;color:var(--amber-800,#92400e);margin-bottom:16px;}
-.ai-list{list-style:none;display:flex;flex-direction:column;gap:10px;}
-.ai-list li{display:flex;align-items:flex-start;gap:12px;font-size:14px;line-height:1.7;counter-increment:ai-counter;}
-.ai-list li::before{content:counter(ai-counter);display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--amber-500);color:white;font-size:11px;font-weight:700;flex-shrink:0;margin-top:3px;}
-
-.actions-section{background:white;border:1.5px solid var(--gray-200);border-radius:16px;padding:28px;margin:32px 0;box-shadow:var(--shadow-sm);}
-.actions-title{font-size:16px;font-weight:700;margin-bottom:16px;}
-.actions-progress{margin-bottom:20px;}
-.actions-progress-label{display:flex;justify-content:space-between;font-size:13px;color:var(--gray-600);margin-bottom:8px;}
-.progress-bar-wrap{background:var(--gray-100);border-radius:999px;height:8px;overflow:hidden;}
-.progress-bar-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--amber-500),#fbbf24);transition:width .4s ease;box-shadow:0 0 8px rgba(245,158,11,.5);}
-.action-list{list-style:none;display:flex;flex-direction:column;gap:0;}
-.action-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-100);}
-.action-item:last-child{border-bottom:none;}
-.action-item input[type="checkbox"]{display:none;}
-.action-item label{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:14px;line-height:1.6;flex:1;}
-.action-item label::before{content:'';width:18px;height:18px;border:2px solid var(--gray-300);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:all .2s;background:white;}
-.action-item input:checked+label{color:var(--gray-400);text-decoration:line-through;}
-.action-item input:checked+label::before{content:'✓';background:var(--amber-500);border-color:var(--amber-500);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:scale(1.1);box-shadow:0 2px 8px rgba(245,158,11,.4);}
-.copy-btn{margin-left:auto;background:white;border:1.5px solid var(--gray-200);color:var(--gray-500);border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;transition:all .2s;font-family:'Noto Sans JP',sans-serif;flex-shrink:0;}
-.copy-btn:hover,.copy-btn.copied{background:var(--amber-500);border-color:var(--amber-500);color:white;}
-  </style>
+  <meta name="description" content="{会議の要約 1〜2 文（100 字前後）。一覧のカードの要約になる。ページには出ない}">
+  <link rel="stylesheet" href="site.css?v=2">
+  <link rel="stylesheet" href="enhance.css?v=10">
+  <!-- そのページだけの図の形があるときだけ: <style id="page-css">.my-chart-x{…}</style>（字 12px 以上・アニメーション・font-family は書かない） -->
 </head>
-<body>
-<div id="scroll-progress"></div>
-<nav class="floating-toc" id="floatingToc"><h4>目次</h4><ul class="toc-list" id="tocList"></ul></nav>
+<body class="th-ex"><!-- 社内 th-in / 社外 th-ex / 講話 th-kowa -->
+<nav class="floating-toc" id="floatingToc"><h4>目次</h4><ul class="toc-list" id="tocList"></ul></nav><!-- 中身は enhance.js が作る -->
 
-<header class="detail-header">
-  <div class="hero-particle"></div><div class="hero-particle"></div><div class="hero-particle"></div>
-  <div class="hero-particle"></div><div class="hero-particle"></div>
-  <div class="detail-header-inner">
-    <a href="index.html" class="back-link">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 3L5 8l5 5"/></svg>一覧に戻る
-    </a>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <span style="font-size:11px;opacity:.45;letter-spacing:.15em;text-transform:uppercase;">FARMAN Inc.</span>
-      <span class="badge-header-external">🤝 社外</span>
-    </div>
-    <h1 style="font-size:clamp(22px,4vw,34px);font-weight:900;line-height:1.25;margin-bottom:16px;">{タイトル}</h1>
-    <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;opacity:.75;">
-      <span>📅 {YYYY}年{M}月{D}日</span>
-      <span>⏱ 録音: {duration}</span>
-      <span id="readTime">📖 読了時間: 計算中</span>
-    </div>
+<header class="detail-header"><div class="detail-header-inner">
+  <div class="hd-top">
+    <a href="index.html" class="back-link"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 3L5 8l5 5"/></svg>一覧に戻る</a>
+    <nav class="breadcrumb" aria-label="パンくずリスト"><a href="index.html">ホーム</a><span class="bc-sep">›</span><a href="index.html?filter=external">社外</a><span class="bc-sep">›</span><span class="bc-current">{タイトル}</span></nav>
   </div>
-</header>
+  <div class="hd-title"><span class="badge-header-external">🤝 社外</span><h1>{タイトル}</h1></div>
+  <div class="hd-meta">
+    <span>📅 {YYYY}年{M}月{D}日 {HH:MM〜HH:MM}</span>
+    <span>⏱ 録音: {duration}</span>
+    <span id="readTime">📖 読了時間: 約{本文の字数÷400 を切り上げ}分</span>
+    <span>場所: {場所}　｜　参加者: {相手先の人}、{社員}</span><!-- 分かる物だけ。議題は書かない -->
+  </div>
+</div></header>
 
 <div class="detail-content" id="detailContent">
-  <h2 class="section-h2 reveal" id="sec1">{セクション1}</h2>
-  <p class="reveal">本文...</p>
-  <div class="decision-box reveal"><strong>結論:</strong> ...</div>
-  <hr style="border:none;border-top:1px solid var(--gray-200);margin:40px 0;">
+  <!-- ① 結論カード（先頭・必須） -->
+  <section class="concl-card" id="summary-card" aria-label="結論・宿題">
+    <div class="cc-block cc-dec"><h2 class="cc-h">決まったこと <span class="cc-n">{結論の数}件</span></h2>
+      <ul class="cc-list">
+        <li>{節 1 の結論の最初の 1 文}<a href="#sec1" aria-label="この結論の節へ">本文→</a></li>
+        <!-- 5 件まで。6 件目からは下の details の中へ -->
+      </ul>
+      <details class="cc-more"><summary>ほか {n} 件</summary><ul class="cc-list"><li>…</li></ul></details>
+    </div>
+    <div class="cc-block cc-todo"><h2 class="cc-h">宿題 <span class="cc-n">{N}件（担当未定 {k}・担当の記載なし {x}）</span></h2>
+      <ul class="cc-todos"><!-- 担当ごとにまとめて並べる（井上→瀬戸山→井出→田中→…→担当未定）。id の番号はページ下の宿題の順 -->
+        <li class="todo-row" id="todo-1" data-todo="1"><span class="td-who">田中</span><span class="td-what">{何を}</span><span class="td-due">期限 9/18</span></li>
+        <li class="todo-row" id="todo-5" data-todo="5"><span class="td-who td-none">担当未定</span><span class="td-what">{何を}</span><span class="td-due td-nodue">期限なし</span></li>
+        <!-- 10-29 夜: td-who は plaud_規則.json の people（社員の表記）に合う物だけ。「田中さんとの面談も含む」「Speaker 3」「川口氏」などは td-what の後ろに（…）で戻す。
+             赤の「担当未定」は社内のページ（と社外のページでファーマン側の宿題）で担当が無い物だけ。社外・講話のページで相手側の宿題・担当の書いていない宿題は灰色: -->
+        <li class="todo-row" id="todo-6" data-todo="6"><span class="td-who td-none td-ext">担当の記載なし</span><span class="td-what">{何を}</span><span class="td-due td-nodue">期限なし</span></li>
+      </ul>
+    </div>
+    <div class="cc-block cc-next"><h2 class="cc-h">次回</h2><p>{次回の日程・場所（話に出たときだけ。無ければこの塊ごと書かない）}</p></div>
+  </section>
 
-  <!-- チャート（内容に応じた種類を選択） -->
-  <div class="chart-container reveal" id="myChart">
+  <div class="kw-bar"><a class="kw-chip" href="index.html?q=…">…</a></div>
+
+  <h2 class="section-h2" id="sec1">{セクション1}</h2>
+  <p>本文...</p>
+  <div class="decision-box"><strong>結論:</strong> …。…。</div>
+  <hr class="section-sep">
+
+  <div class="chart-container" id="myChart">
     <div class="chart-title">📊 {タイトル}</div>
-    <!-- ① 〜 ⑭ の中から最適なものを実装 -->
+    <!-- ① 〜 ⑭ から（値は最初から書く） -->
+    <div class="chart-insight"><span class="ci-ico">💡</span><p><b>注目：</b>…</p></div>
   </div>
 
-  <div class="ai-section reveal">
+  <div class="ai-section">
     <div class="ai-title">✨ AIサジェスト — 次のアクション候補</div>
     <ul class="ai-list"><li>...</li></ul>
   </div>
 
-  <div class="actions-section reveal">
+  <div class="related-section"><h2 class="section-h2" id="related">関連するMTG</h2><div class="related-grid">…</div></div>
+
+  <div class="actions-section">
     <div class="actions-title">📋 ToDo</div>
     <div class="actions-progress">
       <div class="actions-progress-label"><span>進捗</span><span id="progressCount">0 / {N} 完了</span></div>
       <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
     </div>
     <ul class="action-list" id="actionList">
-      <li class="action-item">
-        <input type="checkbox" id="a1">
-        <label for="a1">{ToDoテキスト}</label>
-        <button class="copy-btn" onclick="copyAction(this,event)">📋 コピー</button>
-      </li>
+      <li class="action-item" data-todo="1"><input type="checkbox" id="a1" disabled><label for="a1">{何を}：{担当}：{期限}</label><button class="copy-btn" onclick="copyAction(this,event)">📋 コピー</button></li>
     </ul>
   </div>
 </div>
 
-<script>
-window.addEventListener('scroll',()=>{const e=document.getElementById('scroll-progress'),d=document.documentElement.scrollHeight-window.innerHeight;e.style.width=(d>0?window.scrollY/d*100:0)+'%';},{passive:true});
-(function(){const c=document.getElementById('detailContent'),w=c?c.textContent.replace(/\s+/g,'').length:0,el=document.getElementById('readTime');if(el)el.textContent='📖 読了時間: 約'+Math.max(1,Math.ceil(w/400))+'分';})();
-const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';ro.unobserve(e.target);}}),{threshold:.08});
-document.querySelectorAll('.reveal').forEach(el=>{el.style.opacity='0';el.style.transform='translateY(24px)';el.style.transition='opacity .6s ease,transform .6s ease';ro.observe(el);});
-const barObs=new IntersectionObserver(es=>es.forEach(e=>{
-  if(!e.isIntersecting)return;
-  e.target.querySelectorAll('.anim-bar-fill[data-width]').forEach(b=>{b.style.width=b.getAttribute('data-width')+'%';});
-  e.target.querySelectorAll('.hbar-fill[data-width]').forEach(b=>{b.style.width=b.getAttribute('data-width')+'%';});
-  e.target.querySelectorAll('.stack-seg[data-height]').forEach(b=>{b.style.height=(parseInt(b.dataset.height)/100*140)+'px';});
-  barObs.unobserve(e.target);
-}),{threshold:.2});
-document.querySelectorAll('.chart-container').forEach(c=>barObs.observe(c));
-(function(){const hs=document.querySelectorAll('.section-h2'),tl=document.getElementById('tocList');if(!tl)return;hs.forEach(h=>{const li=document.createElement('li');li.className='toc-item';const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent.replace(/^\d+/,'').trim();a.addEventListener('click',ev=>{ev.preventDefault();h.scrollIntoView({behavior:'smooth',block:'start'});});li.appendChild(a);tl.appendChild(li);});const ti=tl.querySelectorAll('.toc-item');hs.forEach(h=>new IntersectionObserver(es=>es.forEach(e=>{const idx=Array.from(hs).findIndex(x=>x.id===e.target.id);if(e.isIntersecting&&idx>=0){ti.forEach(l=>l.classList.remove('active'));if(ti[idx])ti[idx].classList.add('active');}}),{threshold:.3,rootMargin:'-60px 0px -40% 0px'}).observe(h));})();
-function copyAction(btn,e){e.preventDefault();e.stopPropagation();const t=btn.closest('.action-item').querySelector('label').textContent.trim();navigator.clipboard.writeText(t).then(()=>{btn.textContent='✓ コピー済み';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 コピー';btn.classList.remove('copied');},1800);});}
-const total={N};
-function updateProgress(){const c=document.querySelectorAll('#actionList input:checked').length;document.getElementById('progressBar').style.width=Math.round(c/total*100)+'%';document.getElementById('progressCount').textContent=c+' / '+total+' 完了';if(c===total)setTimeout(confetti,200);}
-document.querySelectorAll('#actionList input').forEach(cb=>cb.addEventListener('change',updateProgress));
-function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#fef3c7'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';const s=6+Math.random()*10;p.style.cssText=`left:${Math.random()*100}vw;width:${s}px;height:${s}px;background:${cs[Math.floor(Math.random()*cs.length)]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s,${.8+Math.random()}s;animation-delay:${Math.random()*.5}s;`;document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());}}
-</script>
-<script>window.__restoreIntersectionObserver&&window.__restoreIntersectionObserver()</script>
-<script src="edit-mode.js?v=13"></script>
-<script src="enhance.js?v=6"></script>
-<!-- 2026-10-29: noanim.js（head の先頭）でページの中の「画面に入ったら動く」仕掛けを開いた時に全部出し、ここで本物に戻す（印刷・PDF で数字が 0・棒が空になるのを止める） -->
+<script src="edit-mode.js?v=15"></script>
+<script src="enhance.js?v=8"></script>
 </body></html>
 ```
+`#progressCount` と `#progressBar` は enhance.js が `data-done="1"` の数から書く（ページで数えない）。
 
-#### ▼ 客先送付用ダウンロード（📥）はスタンドアローンでクリーンにする（edit-mode.js・2026-07-14〜）
+---
 
-`edit-mode.js` の **📥 ダウンロード**（`downloadFile()` = 取引先送付用・back-linkなし版）は、`document.documentElement` を**クローンしてから**次を除去した単体HTMLを出力する（`buildHTML(removeBackLink=true)` 内で実施。ライブDOM・サイト表示・「ファイルを更新」＝`saveToFile()` は不変）：
+#### ▼ 📥 ダウンロード（edit-mode.js v14・2026-10-29〜）— 1 ファイルで崩れない送付版＋伏せ字の補助
 
-- `.breadcrumb`（ホーム›社外›パンくず）・`.kw-bar`（キーワードチップ） … サイト内ナビは送付版に不要
-- `.mini-bar` / `.to-top` / `.tip-pop` / `.fab-stack` / `.toc-backdrop` / `.toc-sheet` … enhance.js が実行時に差し込むフッターUI（単体では `enhance.css` が読めず崩れる）
-- `.anchor-link`（見出しの🔗）… enhance.js 差込
-- `script[src*="enhance.js"]` / `link[href*="enhance.css"]` … 単体では解決できない外部依存
-- `#tocList` は `innerHTML=''` にリセット（ページ内 inline script が開いたとき再生成するため。重複防止）
+**「💾 ファイルを更新」は消した**（畳んだ旧作業場を指していた）。ページ右下は **✏️ 編集モード**（この端末だけで文を直す）と **📥 ダウンロード** の 2 つ。
 
-**理由:** 保存されるのはライブDOMのため、enhance.js の差込物や authored なサイト内ナビがそのまま入り、`enhance.css` を読めない単体ファイルでフッター等が崩れていた。送付版は自己完結で崩れないことを最優先する。**この仕様を変える場合も、`saveToFile()`（ソース置換用・enhance.js等を保持）まで巻き込まないこと。** `edit-mode.js` を更新したら全HTMLの `edit-mode.js?v=N` をインクリメント（現行 **v=13**）。
+📥 を押すと、ライブのページは触らず**写し（clone）**で次をして 1 ファイルにする:
+- `site.css`・`enhance.css` の中身を `<style>` で**埋め込む**（外の CSS が読めなくても崩れない。1 本 70KB 前後・100KB 未満）。`#page-css` は後ろに残す
+- 外す: 戻る・パンくず・kw-bar・enhance.js の差し込み UI（mini-bar・to-top・fab・目次シート・🔗）・コピーのボタン・`<script>` 全部・`<meta name="entities">`（社員名の一覧）・`meta last-edited`・favicon。社外は「関連するMTG」も外す
+- 用語の説明（`.term[data-tip]`）は `title` に写す（単体でも指を置くと出る）
+- **伏せ字の補助**: 写しの本文から「個人の健康（体調・診断・入院・病・怪我…を含む文。作物の病気〈ベト病・病害など〉は外す）」「社内のお金（原価・人件費・給与・利益率…と金額が同じ文）」「社内メモ（社内メモ・内部・ここだけ・オフレコ を含む段落・箱）」を拾い、黄色で示した一覧で **伏せる／そのまま** を選ばせ、選んだ所を `［伏せ］` に置き換えてから保存する（候補が無ければそのまま保存）。**語の一覧は edit-mode.js の頭の `REDACT`** にまとめてある（後で `plaud_規則.json` の `redact` 節から読む形にする）。夜の自動の送付版は作らない（本人 10-29「こちらの操作でダウンロード出来たら問題ない」）
+- 確かめ用に `window.__plaudBuildStandalone(isExternal, redactAll)` が画面を出さずに同じ HTML を返す
 
-#### ▼ 強化レイヤー（enhance.css / enhance.js）— 全ページ共通、デザインは変えず機能を上乗せ
+edit-mode.js・enhance.js・site.css・enhance.css を変えたら、全ページの `?v=N` を上げる（今は edit-mode **v=14**・enhance.js **v=7**・site.css **v=1**・enhance.css **v=10**）。
 
-`enhance.css` と `enhance.js` を**必ず読み込む**（上記テンプレに記載済み）。これだけで以下が自動で付く（色はテーマから自動判定）：
-- **読了プログレス**（目次の各項目にドット）・**スクロール追従の極細セクションバー**（現在地＋ページ内検索）
-- **見出しホバーで#リンクコピー**・**トップに戻る**ボタン・**日本語の文節改行/等幅数字**・**印刷最適化**
-- **長セクションの折りたたみ**（`<div class="collapsible">…</div>` で囲むと自動で「続きを読む」化。本文が長いセクションに使う）
+#### ▼ 共通の層（site.css / enhance.css / enhance.js）
+
+- **site.css**: 見た目の全部（ヘッダーの帯・結論カード・本文・図の部品・宿題・テーマ色・スマホの縦積み・12px の下限）
+- **enhance.css**: 読む道具の見た目と**印刷/PDF**（`@media print`: 白地・飾り無し・結論カードの「ほか n 件」も開いて印刷・SVG は紙の幅に）
+- **enhance.js**: PC の右の目次を作る・**宿題のコピー（`copyAction`）**・**宿題の済（`data-done`）を結論カードと下の一覧の両方に映して進捗の数を書く**・`#todo-<n>` で開いたら畳みを開く・極細の節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調（`.ent`）・ダーク表示・Markdown コピー・印刷ボタン。**既読の印（localStorage）は 10-29 にやめた**
 
 **コンテンツ側で必ず入れる（知能化）：**
 
 1. **`<meta name="entities">`** … 人物・企業名をカンマ区切り。本文中の該当名が自動で強調（`.ent`）される。**1文字の固有名（「原」「林」等の1字姓）は入れない**（「原料」「林業」等の無関係な語に誤マッチして色が付く。enhance.js側でも2文字未満は強調対象外にしているが、メタにも入れないこと）。**また、entities に書いた語は本文に必ず登場させること**（2026-08-10 追記。全体MTGの entities に、他ページから引き写した参加者名「井上・関根・瀬戸山」を入れたが、その回のPlaud要約には出てこないため本文に書けず、`audit.js` の「meta entities の語が本文に無い」で検出された。**参加者欄・entities を前回ページからコピーしない。** Plaud要約に名前が無い回は、参加者を推測で補わず entities からも外す）。
-2. **キーワードチップ**（ヒーロー直後／本文冒頭に）：
+2. **キーワードチップ**（結論カードの直後）：
 ```html
 <div class="kw-bar">
   <a class="kw-chip" href="index.html?q=カーボンクレジット">カーボンクレジット</a>
-  <a class="kw-chip" href="index.html?q=バイオ炭">バイオ炭</a>
   <a class="kw-chip" href="index.html?q=北杜市">北杜市</a>
 </div>
 ```
@@ -1151,64 +656,33 @@ function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#f
 ```html
 <span class="term" data-tip="バイオ炭：生物資源を低酸素で炭化したもの。土壌改良＋炭素固定に使え、カーボンクレジット化が検討される。">バイオ炭</span>
 ```
-4. **関連MTGリンク**（ToDoの直前など末尾に）：STEP1で取得した**既存HTML一覧**を見て、**同じ人物・企業・テーマを共有する過去ページを2〜4件**選びリンクする（横断ナレッジ化）。`data-text`やタイトルの重なりで判断：
-```html
-<div class="related-section">
-  <h2 class="section-h2 reveal" id="related">関連するMTG</h2>
-  <div class="related-grid">
-    <a class="related-card" href="2026-06-19_sakanotochu-mtg.html">
-      <div class="rc-date">2026年6月19日</div>
-      <div class="rc-title">06-19 坂ノ途中 MTG</div>
-      <div class="rc-why">🔗 坂ノ途中・バイオ炭が共通</div>
-    </a>
-  </div>
-</div>
-```
-
-**チャートには `chart-insight`（インサイト注釈）を1つ添える**（「一番言いたい数字」を言語化）：
-```html
-<div class="chart-insight">
-  <span class="ci-ico">💡</span>
-  <p><b>注目：</b>創出コストは市場上限の<b>約4.6倍</b>。普及には規模拡大・助成・複合収益が前提。</p>
-</div>
-```
+4. **関連MTGリンク**（ToDoの直前）：STEP1で取得した**既存HTML一覧**を見て、**同じ人物・企業・テーマを共有する過去ページを2〜4件**選びリンクする（上のテンプレの `.related-section`）。`.related-card` の中は `rc-date`・`rc-title`・`rc-why`（🔗 共通の理由）。
 
 **コンテンツ生成指針：**
 - **タイトルはPlaudのファイル名をそのまま使う**（変換・省略・空白の追加・削除は一切しない）
 - セクションはPlaudのkey_topicsをベースに、内容の論理的なまとまりで分ける（3〜15セクション程度）
-- 各セクションに `結論:` のdecision-boxを必ず追加
+- 各セクションに `結論:` のdecision-boxを必ず追加。**最初の 1 文で「何が決まったか」を言い切る**（結論カードに最初の 1 文が並ぶ）
 - section-h3 はセクション内にサブトピックがある場合に使う
-- ToDoはaction_itemsから生成（なければsummaryから抽出）
+- ToDoはaction_itemsから生成（なければsummaryから抽出）。**型は `何を：担当：期限`**
 - **チャートは必ず1〜2種類追加する**（上記14種の中からMTG内容に最も合うものを選ぶ）
 - **AIサジェストは必ず追加する**（4〜5件）
+- 録音が短い（数分）回は、録音より膨らませない（節 2〜3・図は 1 つまで）
 
 ---
 
 #### ▼ 🎤 講話録音 — 講話ナレッジテンプレート（議事録テンプレートとは別設計）
 
-**講話録音ファイルは議事録テンプレートを使わず、以下の専用テンプレートで生成する。**
+**講話録音ファイルは議事録テンプレートを使わず、以下の専用テンプレートで生成する。** 土台（head・ヘッダーの帯・site.css・飾り無し・字 12px 以上・script 2 行）は上の議事録テンプレと同じ。`<body class="th-kowa">`。
 
 設計の違い：
-- ToDo / Asana連携 → **なし**（講話はアクション管理でなくナレッジ蓄積が目的）
+- ToDo → **なし**（講話はアクション管理でなくナレッジ蓄積が目的）。結論カードも作らない（`.insight-box` の「テーマの核心」を 1 つ目の節に置く）
 - セクション構成 → 固定4セクション（下記）
-- テーマタグ → 必須（kowa-knowledge.html の横断検索に使用）
+- テーマタグ → 必須（kowa-knowledge.html の横断検索に使用。ヘッダーの帯の下に `<div class="theme-tags"><span class="theme-tag">農業観</span>…</div>`）
 - 関連講話リンク → 自動生成（既存の他講話HTMLと照合）
-
-**テーマ色：インジゴ**
-```css
---indigo-950: #1e1b4b
---indigo-900: #312e81
---indigo-500: #6366f1
---indigo-400: #818cf8
---indigo-300: #a5b4fc
---indigo-100: #e0e7ff
---indigo-50:  #eef2ff
---bg: #f5f3ff
-```
 
 **固定セクション構成：**
 
-1. **📌 講話の概要** — 誰が・何について・いつ話したかの3行サマリー
+1. **📌 講話の概要** — 誰が・何について・いつ話したかの3行サマリー＋ `<div class="insight-box"><strong>テーマの核心:</strong> …</div>`
 2. **💡 キーフレーズ・名言** — 印象的な言葉を引用ボックスで表示（3〜6件）
 3. **🧠 学びのポイント** — 箇条書き（5〜10件）＋ データビジュアライズ（上記チャートから選択）
 4. **🔮 今後への示唆** — この講話から導かれる次の一手（3〜5件）
@@ -1225,9 +699,9 @@ function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#f
 テーマ候補（MTGの内容から最も合うものを2〜4つ選ぶ）：
 `経営哲学` `農業観` `人材育成` `マーケット` `地域連携` `テクノロジー` `サステナビリティ` `食と健康` `組織文化` `リーダーシップ`
 
-**引用ボックスのHTML：**
+**引用ボックスのHTML**（site.css の `.kowa-quote`＝暗い箱・白い字。中の形は `#page-css` に数行）：
 ```html
-<div class="kowa-quote reveal">
+<div class="kowa-quote">
   <div class="kowa-quote-mark">"</div>
   <p class="kowa-quote-text">引用テキスト</p>
   <div class="kowa-quote-source">— 話者名（任意）</div>
@@ -1240,140 +714,81 @@ function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#f
 
 ---
 
-### STEP 5: index.html にカードを追加する
+### STEP 5: index.html は gen-aux.js が全部作る（手でカードを足さない・2026-10-29〜）
 
-設定ファイルで指定された `paths.work_dir` の `index.html` に、既存カードリストの**先頭**（最新が上）を追加。
+index.html は STEP 5.6 の `gen-aux.js` が会議ページ（`2026-*.html`）から毎回まるごと作り直す。**手でカードを足したり数字を直したりしない**（直しても次の実行で消える）。会議ページを置いたら STEP 5.6 を流すだけ。
 
-```powershell
-# 設定ファイルから作業ディレクトリを読み込む
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-$indexFile = Join-Path $workDir $config.paths.index_file
-```
+index の作り（U2・全体改善案 v1.0 §2-2）:
 
-以下の操作を `$indexFile` に対して実行：
+| タブ | 中身 | 元 |
+|---|---|---|
+| 今週（既定） | 今日から 7 日（少なければ 14 日）の会議の「決まったこと」を 1 行ずつ。2 週間会議が無ければ「最後の会議までの 2 週分」と書いて出す | 会議ページの決定（index に埋め込む） |
+| 宿題 | 人ごとのタブ（井上・瀬戸山・井出・田中・関根・豊田・青柳＋ほかの人＋担当未定）。期限順・済/未・期限切れは赤 | `data/todos.json`（タブを開いた時だけ読む） |
+| 取引先 | 社名の一覧 → `partners/<slug>.html` の年表 | `data/partners.json` の元と同じ集計 |
+| 一覧 | 会議カード（題・社内/社外/講話・要約 60 字・「決定 n・宿題 n」・録音時間）。種類・月・検索でしぼる | 会議ページ |
 
-**カードのHTML形式：**
-```html
-<a href="{filename}.html" class="mtg-card card-animate" data-type="{internal|external}" data-text="{キーワードスペース区切り}">
-  <div class="card-glare"></div>
-  <div class="card-header">
-    <span class="card-date">{YYYY}年{M}月{D}日</span>
-    <span class="badge badge-external">🤝 社外</span>
-  </div>
-  <div class="card-title">{タイトル}</div>
-  <div class="card-summary">{1〜2行の要約}</div>
-  <div class="card-footer">
-    <span class="card-duration">⏱ {録音時間}</span>
-    <span class="card-actions-badge has-actions">✅ ToDo {N}件</span>
-  </div>
-</a>
-```
+- 全文検索は、一覧の検索欄に字を入れた時だけ `search-index.json` を読む（開くたびには読まない）。カードに `data-text` は持たない。
+- 前の URL はそのまま動く: `index.html?q=語`（ページのキーワードのリンク）→ 一覧で検索、`index.html?filter=internal`（パンくず）→ 一覧で種類しぼり、`#week` `#todo` `#partner` `#list` でタブ。
+- 見た目: Google Fonts は使わずシステムフォント、飾り（粒・ノイズ・出現の動き・光沢）無し、字は 12px 以上。CSS は gen-aux.js が `style.css` に書く（`style.css` を手で直さない）。
+- audit.js が見る所は残している: `class="mtg-card"`＋`data-type`、`<strong data-count>` 4 つ（全件・社内・社外・講話録音の順）、`id="count">N件表示中`。
+- 既定のタブを変えるときは gen-aux.js の `DEFAULT_TAB` だけ（U5 の判断: 10-29 は「今週」のまま）。
 
-講話録音の場合は以下のカード形式を使う：
-```html
-<a href="{filename}-kowa.html" class="mtg-card card-animate" data-type="kowa" data-text="{テーマタグ スペース区切り}">
-  <div class="card-glare"></div>
-  <div class="card-header">
-    <span class="card-date">{YYYY}年{M}月{D}日</span>
-    <span class="badge badge-kowa">🎤 講話録音</span>
-  </div>
-  <div class="card-title">{タイトル}</div>
-  <div class="card-summary">{1〜2行の要約}</div>
-  <div class="card-footer">
-    <span class="card-duration">⏱ {録音時間}</span>
-    <span class="card-actions-badge">🏷 {テーマ1} / {テーマ2}</span>
-  </div>
-</a>
-```
-
-カード追加後、実際のカード数をカウントして `data-count` と `filter-count` を更新する（PowerShell）：
-
-```powershell
-# 設定ファイルから作業ディレクトリを読み込む
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-$indexFile = Join-Path $workDir $config.paths.index_file
-
-$content = Get-Content $indexFile -Raw
-($content | Select-String 'class="mtg-card' -AllMatches).Matches.Count
-($content | Select-String 'data-type="internal"' -AllMatches).Matches.Count
-($content | Select-String 'data-type="external"' -AllMatches).Matches.Count
-($content | Select-String 'data-type="kowa"' -AllMatches).Matches.Count
-```
-
-取得した数値で以下を更新：
-- `<strong data-count="X">` × 4箇所（全件・社内・社外・講話録音）
-- `<span class="filter-count" id="count">X件表示中</span>`
-
-**index.html フィルターバーの「📚 講話ナレッジベース」リンク：** フィルターバーの「🎤 講話録音」ボタンの右隣に配置済み。新規ページ追加時に壊れていないか確認する。
+講話録音のページも同じ（index には gen-aux.js が「講話」のカードで載せる）。
 
 ### STEP 5.5: kowa-knowledge.html を更新する（講話録音が追加された場合のみ）
 
-今回の処理に講話録音ファイルが1件以上含まれる場合、`kowa-knowledge.html` を再生成する。
+`kowa-knowledge.html` は gen-aux.js が作らない（手で保つ）。講話録音が 1 件以上増えたら更新する。フォントは Google Fonts を使わずシステムフォント、字は 12px 以上（10-29 に直した）。
+
+**実装の決まり（壊さない）:**
+- テーマのボタン: `onclick="filterTheme(null,'テーマ名')"`（第 1 引数は null 固定）
+- キーワードのチップ: `onclick="toggleKwChip(this,'キーワード')"`（押すと active、もう一度で外す・押した後 `kowaGrid` へスクロール）
+- 「✕ クリア」（id="clearBtn"）: しぼり込み中だけ出し、`clearFilters()` を呼ぶ
+- 講話カード（`#kowaGrid` の中）: `data-themes` / `data-keywords` / `data-speaker` / `data-date` が必須
+- JS の関数は `filterTheme(_, theme)`・`toggleKwChip(chip, q)`・`searchKowa(q)`・`clearFilters()` の 4 つ
+
+構成: 見出し → 件数とテーマ数 → テーマのボタン＋検索＋クリア → 講話カード（日付順）→ キーワード → テーマ別の索引。
+
+### STEP 5.6: gen-aux.js で index と横断ページを作り直す（毎回・会議ページを足した・直した後は必須）
 
 ```powershell
-# 設定ファイルから作業ディレクトリを読み込む
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$workDir = $config.paths.work_dir -replace '~', $env:USERPROFILE
-$kowaFile = Join-Path $workDir $config.paths.kowa_knowledge_file
-# $kowaFile に対して更新処理を実行
-```
-
-**kowa-knowledge.html 実装仕様（重要）：**
-
-- フィルターバーのテーマボタン: `onclick="filterTheme(null,'テーマ名')"` で統一（`filterTheme` 第1引数はnull固定）
-- キーワードチップ: `onclick="toggleKwChip(this,'キーワード')"` を使う（`searchKowa` ではない）
-  - クリックでハイライト（active状態）、再クリックで解除（トグル動作）
-  - クリック後に `kowaGrid` へ自動スクロール
-- 「✕ クリア」ボタン（id="clearBtn"）: フィルター適用中のみ表示、`clearFilters()` を呼び出す
-- テーマインデックスカードのonclick: `filterTheme(null,'農業観')` 形式
-
-**kowa-knowledge.html の構成：**
-
-```
-[ヘッダー] 🎤 講話ナレッジベース — FARMAN Inc.
-[統計バー] 全{N}件 / テーマ数{M}種
-
-[フィルターバー] テーマ別ボタン（すべて / テーマ1 / ...）+ 検索ボックス + ✕クリアボタン + N件表示中
-
-[タイムライン + カードグリッド] id="kowaGrid" — 日付順に講話カード
-  各カード: data-themes / data-keywords / data-speaker / data-date 属性必須
-
-[キーワードクラウド] toggleKwChipで操作、activeクラスでハイライト
-
-[テーマ別インデックス] filterTheme(null, テーマ名)で操作
-```
-
-**JS関数の定義（必ずこの4つを実装）：**
-```javascript
-function filterTheme(_, theme){ /* テーマフィルター + kowaGridへスクロール */ }
-function toggleKwChip(chip, q){ /* キーワードチップのトグル + kowaGridへスクロール */ }
-function searchKowa(q){ /* テキスト検索（input oninput用）*/ }
-function clearFilters(){ /* 全フィルターリセット */ }
-```
-
-### STEP 5.6: 横断ページを自動再生成する（毎回・新規HTMLがあれば必須）
-
-新規HTML化・index更新が発生したら、**index更新の後**に `gen-aux.js` を実行して横断ページを再生成する。これは既存の全議事録HTMLを解析して以下を自動生成する（手書き不要・常に最新）：
-
-| 出力 | 内容 |
-|------|------|
-| `search-index.json` | 全文検索インデックス（index.html の検索が本文・タグまで対象にする） |
-| `entity-index.html` | 🔗 ナレッジインデックス（人物・企業・キーワードでMTGを横断。`<meta name="entities">`＋indexカードの`data-text`を集約） |
-| `decisions.html` | ✅ 決定事項ダッシュボード（全MTGの `decision-box` を集約） |
-
-```powershell
+$cfg = Get-Content "$env:USERPROFILE\.plaud\plaud-config.json" -Raw | ConvertFrom-Json
 $cfgHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { "$env:USERPROFILE\.claude" }
 $skillDir = @("$cfgHome\plugins\marketplaces\farman-skills\plugins\plaud-suite\skills\plaud-html","$cfgHome\skills\plaud-html") | Where-Object { Test-Path (Join-Path $_ 'gen-aux.js') } | Select-Object -First 1
 node "$skillDir\gen-aux.js" (($cfg.paths.work_dir) -replace '~', $env:USERPROFILE)
 ```
 
-> **依存：** index.html のカード `data-text` を読むため、**STEP 5（index更新）の後に実行**すること。新規HTMLが0件の回はスキップ可。
-> **index.html 側の前提：** フィルターバーに `entity-index.html`／`decisions.html` へのリンク、末尾に `search-index.json` を読み込む全文検索＆`plaud-read-*` 既読バッジのスクリプトが入っている（導入済み）。
+会議ページは**読むだけ**（書き換えない）。読み方は旧の作り（`.decision-box`・`.action-item` の label・`<meta name="entities">`・h1・ファイル名の日付・`class="badge-header-*"`）と新しい作り（先頭の結論カードの「決まったこと」・宿題行 `id="todo-<n>"`・`data-asana`・`data-done="1"`・「次回」の見出し）の両方で動く。同じ文が結論カードと本文の両方にあっても 1 つに数える。
+
+| 出力 | 中身 |
+|---|---|
+| `index.html` | STEP 5 の 4 タブ |
+| `style.css` | index・年表・決定・索引の共通 CSS（gen-aux.js の中の CSS を書き出す。`?v=` は中身のハッシュ） |
+| `search-index.json` | 全文検索（題・言葉・本文 6,000 字）。index は検索の時だけ読む |
+| `partners/<slug>.html` | 1 社 1 ページの年表: 日付 → 会議 → その会議の決定・宿題・次回 → 会議ページへのリンク。●＝題に社名がある会議（全部出す）、○＝ほかの会議で話に出た（社名がある決定・宿題だけ）。表から外れた社のページは消す |
+| `decisions.html` | 決定の一覧（軽い描画ページ）。最初は `data/decisions-recent.json`（新しい 15 会議）、検索・もっと見るで `data/decisions.json` |
+| `entity-index.html` | 取引先の一覧＋「人・会社・言葉で探す」（入れた時だけ `data/entities.json` を読む）。`?q=` も効く |
+| `data/decisions.json`・`data/decisions-recent.json` | 決定（会議ごと・見出しつき） |
+| `data/partners.json` | 年表の元 |
+| `data/entities.json` | 言葉 → 会議 |
+| `data/todos.json` | 宿題（下の形）。**`"source":"asana"` の物（Asana 担当が夜に作る）があれば書かない**。無い・`"source":"pages"` の時だけ、ページの宿題行から仮の物を作る |
+| `data/keywords.json` | 旧 index カードの `data-text`（検索用の語）を 1 回だけ移した物。以後はこれを検索の語に足す（消さない） |
+
+**社名の正表記**: `plaud_規則.json` の `aliases`（`{list:[{正, ゆれ:[…]}]}`）・`typos` の誤字・`people` の社員とゆれを読む。場所は 環境変数 `PLAUD_RULES` → `plaud-config.json` の `paths.rules_file` → `~/OneDrive/右腕AI/00_Resources/plaud_規則.json`。無ければ gen-aux.js の中の仮の表。取引先の一覧（正表記と URL の名前）は gen-aux.js の `PARTNERS`（`plaud_規則.json` に `partners` があれば足す）。社員名は取引先に入れない。**新しい取引先が出たら `PARTNERS` に 1 行足す**（URL の名前はローマ字・一度決めたら変えない）。
+
+**宿題の担当と期限の読み方**: `何を：担当：期限`（担当は社員の表記・期限 `9/18`・`9月18日`・`2026-09-18`・`-`）、「担当: 井上」「@井上」、頭の「井上が／井上さんは」、終わりの「（井出・井上）」、本文の「期限: 2026-07-20」「7月31日までに」。社員でない人だけ・書いていない物は「担当未定」。2 人以上の物はそれぞれの人に入れ、`with` に一緒の人を書く（`total` は重ねない数）。
+
+`data/todos.json` の形（Asana 担当と同じ）:
+```json
+{"generated":"2026-10-29T21:00:00+09:00","source":"asana|pages","total":922,
+ "people":{"井上":[{"title":"…","due":"2026-11-05","done":false,"gid":null,"asana_url":null,"page":"2026-09-11_farman-zentai.html","anchor":"todo-3","meeting":"09-11 ファーマン全体MTG","date":"2026-09-11"}]},
+ "unassigned":[同じ形]}
+```
+Asana 側の物に `"multi":[…]`（2 人以上の宿題）があれば、宿題タブに「複数人」として出す。
+
+**流した後に見る数**（gen-aux.js が最後に出す）: 会議の本数＝一覧のカード、決定の総数＝ページの decision-box の総数、宿題の総数＝ページの action-item の総数。「注意」が出たら（h1 が無い・決定が 0）そのページを開いて確かめる。
+
+> 古い URL は残す: `entity-index.html`・`decisions.html` は同じ名前のまま中身を軽い形にした（1.29MB・329KB → 約 21KB・13KB）。audit.js が「全ページの名前が入っているか」を見るので、両ページの下に会議の一覧（畳んだ物）を置いている。消さない。
+> `repair-index.ps1` は gen-aux.js を流すだけの物になった（index は作り直せば数が合う）。
 
 ### STEP 5.7: 自己監査を実行する（必須・不合格ならデプロイ禁止）
 
@@ -1403,46 +818,64 @@ node "$skillDir\audit.js" $workDir 2026-07-27_foo-mtg.html 2026-07-17_bar.html
 2. **参考: 既存ページの積み残し** — 検査はするがブロックしない。**積み残しを常に可視化して、後から大量に湧くのを防ぐ**のが目的（2026-07-29 に `--all` 初実行で94件/45ページが一度に出た反省）
 3. **要目視: 固有名の表記ゆれ疑い（NAME）** — ヒューリスティックのため**常にブロックしない**。「東京会館／東京會舘」のような実際の揺れを拾える一方、誤検出もある
 
-**検査内容:** index のカード数と `data-count`×4・`filter-count` の整合／カードのリンク先実在／**孤立HTML（indexに載っていないページ）**／関連MTGリンクの実在／**チャート数と `chart-insight` 数の一致**／hero-particle 5個／`white-space:nowrap`／`meta entities` の有無と**1文字語の混入**／ToDo件数の4点一致（項目数・`const total`・進捗ラベル・**indexカードの「ToDo N件」**）／section id 重複／**タイムラインの要素順**／横断ページ3種への反映／**`id="detailContent"` の存在**／**`chart-insight` の差し色がテーマと一致**／**decision-box 数がセクション数に見合うか**／**`meta entities` の語が本文に実在するか**。
+**載せてよいかの関門（2026-10-29〜・今回対象のページは止める・既存のページは参考に件数が出る）:**
+- **PUB（A-2・A-6）**: `<meta name="plaud-file-id">` が無い／その録音が Plaud で 社内・社外・講話録音・学生発表 に無く `plaud_掲載の承認.json` にも無い／`of_n_note:`（Highlights・会議議事録の写し）／**同じ file_id のページが 2 本ある（二重掲載）**。照合は file_id だけで、題名・日付では見ない。**10-29 夜: `plaud_掲載の承認.json` の「載せない」にある file_id・ページ名のページは、既存・新規を問わず必ず止める**（06-24 アムウェイ補助金・樹採用MTG＝内定・再面談・希望年収・時給と年収。夜の自走が載せ直さないため）。
+- **PRIV（A-3）**: 人の健康・個人の給与・面接の記録の言い方が本文・meta（description・entities）にある。10-29 夜に足した: 人の名前と同じ文の時給・日給・月給・年収・給与・賞与・手取り（「渡辺さんの現場確保（時給1,200円）」）／内定・希望年収・再面談・入社前面談・○次面接／採用候補・候補者の面談や入社の打診／入社の条件・前倒し入社。会社の単価・取引価格・就労支援の工賃・統計の年収は止めない形。**載せる会議の中に 1 文だけある時は、その所を［伏せ］にする（文の中身はほかを変えない）**
+- **TYPO（A-7）**: 10-29 夜から、会議ページに加えて生成物（index・decisions・entity-index・kowa-knowledge・search-index.json・data/ の decisions・entities・keywords・todos）も見る（サイト全体の問題＝常に止める。取引先の年表は「ほかの書き方」に誤字の形をわざと載せるので見ない）。gen-aux.js と asana-sync.js は書き出す物に typos（gate=true）を当てる。`plaud_規則.json` の typos で `gate: true` の誤字（北斗市・坂の途中・千歳研究所・井手・市山マート・カオシェ・水納・脳中・アルソワ・皮脂循環）が本文・題名・meta に残っている。ゆれ・推測・要目視（`gate: false`）は止めない。規則が読めなければ、今回対象があるときは止まる。10-29 の既存 102 本では 25 件/22 本（北斗市 24 回/7 本・千歳研究所 16 回/8 本・坂の途中 19 回/7 本・井手・市山マート・カオシェ 各 1 本）＝参考に出るだけ。
+- 場所は環境変数で変えられる: `PLAUD_FOLDERS`（既定 `%TEMP%\plaud-folders.json`＝STEP 1 の出力）・`PLAUD_APPROVED`・`PLAUD_RULES`（既定は OneDrive の `右腕AI\00_Resources\` の各ファイル）。
+
+**検査内容（2026-10-29 の新しい作りに合わせた）:** index のカード数と `data-count`×4・`filter-count` の整合／カードのリンク先実在／**孤立HTML（indexに載っていないページ）**／**indexカードの「決定 n・宿題 n」がページと一致**／関連MTGリンクと結論カードの「本文→」の行き先の実在／**`site.css`・`enhance.css`・`enhance.js`・`edit-mode.js` を読み、版が他のページとそろう**（site.css の `.back-link` に `white-space:nowrap`）／**先頭の結論カード `.concl-card`**（講話で結論も宿題も無い物は除く。「決まったこと n件」＝decision-box の数・「宿題 n件」＝下の一覧の数）／**宿題の行**（結論カードの `.todo-row` に `id="todo-n"` と `data-todo="n"`、下の一覧の `.action-item` に `data-todo="n"`、番号の重複・抜け無し）／**古い作りが無い**（OLD: hero-particle・scroll-progress・`.reveal`・noanim.js・Google Fonts・Chart.js・ページ内 `<script>` の中身・`const total`）／**📥 の単体 HTML でない**（STANDALONE: site.css もスクリプトも無い・meta entities が無い・`<style>` が 20KB を超える）／チャート数と `chart-insight` 数の一致／`meta entities` の有無と**1文字語の混入**・**語が本文か `<meta name="description">` に実在するか**／section id 重複／**タイムラインの要素順**／横断ページ（entity-index・search-index.json・data/entities.json、決定があれば decisions.html・data/decisions.json）への反映／**`id="detailContent"` の存在**／**decision-box 数がセクション数に見合うか**。
 
 - **アセットのバージョンはハードコードしていない。** 全ページの最頻値を正とし、そこから外れたページだけを報告する（`enhance.css?v=N` を上げても監査は壊れない）。
 - **講話録音(kowa)は自動判定して免除される**（ToDo・decision-box・AIサジェストを持たない設計のため）。
 - 監査が誤検出した場合は、ページを歪めるのではなく **`audit.js` の側を直す**（そのうえで STEP 5.7 の説明も更新する）。
-- **NAME の比較相手は VOCAB（全ページの `meta entities` ＋ indexカードの `data-text`）に限定している。** 日本語は語境界が無く、本文を正規表現で切ると「有機農業者向」のような断片を拾って誤検出が爆発するため（初版は52件中ほぼ全てが誤検出→語彙限定で5件に）。
+- **NAME の比較相手は VOCAB（全ページの `meta entities`）に限定している**（10-29 から index のカードは `data-text` を持たない）。 日本語は語境界が無く、本文を正規表現で切ると「有機農業者向」のような断片を拾って誤検出が爆発するため（初版は52件中ほぼ全てが誤検出→語彙限定で5件に）。
 
 > **⚠️ 監査の検出結果を鵜呑みにしない（2026-07-28の教訓）。** 初版の `audit.js` は125件を報告したが、**うち27件が偽陽性**だった。原因は次の3つで、いずれも「実ファイルを開いて確かめる」ことで判明した：
 > 1. **CSSの空白ゆらぎ** — `white-space:nowrap` だけを探し、実在する `white-space: nowrap`（空白あり）を見落として17件の偽陽性。→ CSSプロパティは**ルール内を空白除去してから**比較する（`ruleHas()`）
 > 2. **`decisions.html` 未掲載を一律エラー扱い** — decision-boxを持たないページ（講話・旧テンプレ）は載らないのが正しいのに10件の偽陽性。→ **decision-boxがある場合だけ**掲載を要求する
-> 3. **クラス属性の完全一致** — `class="chart-insight"` のような完全一致だと `class="chart-insight reveal"` を取りこぼす。→ `hasClass()`/`countClass()` で**クラス列に耐える**判定にする
+> 3. **クラス属性の完全一致** — `class="chart-insight"` のような完全一致だと、クラスが 2 つ以上ある `class="chart-insight wide"` のような物を取りこぼす。→ `hasClass()`/`countClass()` で**クラス列に耐える**判定にする
 >
 > **検出が出たら、直す前に必ず1件を実ファイルで裏取りする。** 監査を信じて既存ページを書き換えると、正しいものを壊す。
 
 ### STEP 6: ToDo（宿題）は Asana に登録しない（2026-10-29〜・本人「宿題の正本は Asana・登録元は 1 つ」）
 
-**このスキルは Asana に何も登録しない。** 宿題の登録は、毎日の「会議の取り込み」（右腕AI・秘書の朝の流れ。手順は `右腕AI\秘書スペシャリスト\秘書スペシャリスト Resources\手順_会議の宿題のAsana登録.md` の A）だけが行う（登録元を 1 つにして、同じ宿題が 2〜3 件になる二重登録を止める）。議事録ページの宿題は、そのページの中の一覧として残し、Asana との相互リンクと済/未の反映は全体改善案 v1.0 §4 の AS2・AS5（これから作る）で行う。
+**このスキルは Asana に何も登録しない。** 宿題の登録は、毎日の「会議の取り込み」（右腕AI・秘書の朝の流れ。手順は `右腕AI\秘書スペシャリスト\秘書スペシャリスト Resources\手順_会議の宿題のAsana登録.md` の A）だけが行う（登録元を 1 つにして、同じ宿題が 2〜3 件になる二重登録を止める）。議事録ページの宿題は、そのページの中の一覧として残し、Asana との相互リンクと済/未の反映は STEP 6.5 の `asana-sync.js`（全体改善案 v1.0 §4 の AS2・AS5）が行う。
 - 関門（AS6）: このスキルの実行中に `create_tasks`（Asana の登録）を呼んではいけない。夜の自走の記録・完了報告に「Asana 登録: 0（会議の取り込みが担当）」と書く。
 - 旧 STEP 6（「タスク：担当：期限」の形を瀬戸山の担当で登録・人ごと＋複数人に重ねて登録）は 2026-10-29 に外した。本文は git の履歴（skills-marketplace の 1.5.0 以前）にある。
 
-### STEP 6.9: 本人が直したページを受け口から入れる（毎回・2026-10-29〜）
+### STEP 6.5: 夜の流れ — Asana の済をページに映す・載っていない録音を数える（2026-10-29〜）
 
-本人がサイトの「✏️ 編集モード」→「💾 ファイルを更新」で保存した HTML は、OneDrive の受け口 `ドキュメント\farman\10_システム開発\議事録サイト\直した版の受け口\` に置かれる。STEP 7 の前に、同じ名前のページがリポにある物だけを置き換え、受け口の物は `取り込み済み\` に日時つきで移す。リポに無い名前は入れずに報告（新しいページは STEP 4 で作る物なので）。
+夜の自走（と、このスキルを流した日）は STEP 5.6 の前に次をする。どれも**読むだけ・数えるだけ**で、Asana にもPlaud にも書かない。
 
-```powershell
-$inbox = Join-Path $env:OneDrive "ドキュメント\farman\10_システム開発\議事録サイト\直した版の受け口"
-$repoDir = "$env:USERPROFILE\.plaud\farman-mtg-site"
-if (Test-Path $inbox) {
-  $done = Join-Path $inbox "取り込み済み"; New-Item -ItemType Directory -Force $done | Out-Null
-  foreach ($f in Get-ChildItem $inbox -Filter *.html -File) {
-    $dst = Join-Path $repoDir $f.Name
-    if (Test-Path $dst) {
-      Copy-Item $f.FullName $dst -Force
-      Move-Item $f.FullName (Join-Path $done ("{0}_{1}" -f (Get-Date -Format 'yyMMdd-HHmm'), $f.Name)) -Force
-      Write-Host "本人の直しを入れた: $($f.Name)"
-    } else { Write-Host "⚠ リポに同じ名前が無いので入れていない（報告に 1 行）: $($f.Name)" -ForegroundColor Yellow }
-  }
-}
-```
-入れたページも STEP 5.7 の audit と STEP 7 の秘密の確かめを通る（直しで壊れていれば止まる）。
+1. **Asana を読む**: Claude が Asana コネクタの `get_tasks` で各人のプロジェクト（井上・瀬戸山・井出・田中・関根・豊田・青柳・複数人）を全部読み、`{"read_at":…,"projects":{…},"tasks":[{gid,project,completed,due_on,name,notes}]}` の JSON にする（形は asana-sync.js の頭の説明）。
+2. **ページに印を付け、宿題タブの元を作る**:
+   ```
+   node asana-sync.js --site ~/.plaud/farman-mtg-site --asana <読んだ JSON> --log <右腕AI\00_Resources\会議取り込み_log.md> --apply-pages
+   ```
+   - 結べた宿題の行（結論カードの `id="todo-n"`）に `data-asana="<gid>"`、Asana で全部済なら `data-done="1"`。何度流しても同じ結果。画面では ✓ と取り消し線（site.css・enhance.js が下の一覧にも映す）
+   - `data/todos.json`（source: asana）は**このスクリプトだけが書く**（gen-aux.js は上書きしない）
+   - 結べなかった物（unsure）は理由つきで出る。題名で推し量って結ばない。まず `--dry-run` で数を見てよい
+   - 10-29 夜: 宿題の文は結論カードの行の `td-what` だけ、担当は `td-who`、期限は `td-due` から読む（行の文字を全部つなぐと「担当未定…期限なし」が題名にくっついていた）
+   - 「複数人」プロジェクト（1214855321951743）の宿題は担当未定に入れず `multi`（宿題タブの「複数人」）に入れ、ページの担当の人の欄にも出す（その人の分が人のプロジェクトに無いとき）
+   - 社外・講話のページで担当の書いていない宿題は `external: true`（宿題タブの灰色の「担当の記載なし」）。赤の「担当未定」は社内の物だけ
+   - `plaud_掲載の承認.json` の「載せない」にある会議を出典とする宿題は todos.json に出さない（summary の `excluded_no_publish`）。typos（gate=true）を題名・会議名に当てる
+3. **載っていない録音を数える**: `node plaud-pending.js ~/.plaud/farman-mtg-site` の 1 行目を朝の報告に入れる（先に `plaud-folders.ps1` で `%TEMP%\plaud-folders.json` を作る）。
+4. **短い録音の候補を出す**: `powershell -ExecutionPolicy Bypass -File plaud-trash.ps1`（既定は一覧だけ）。ゴミ箱へ移すのは本人が OK と言った file_id だけ（`-Apply -FileIds …`、戻すのは `-Restore`）。完全に消す操作は使わない。
+
+このあと STEP 5.6（gen-aux.js）→ STEP 5.7（audit.js）→ STEP 7。
+
+### STEP 6.9: 本人の直しを元ページに書き戻す（毎回・2026-10-29 改）
+
+**📥 ダウンロードの HTML はサイトに入れない。** 「💾 ファイルを更新」は消した（edit-mode.js v14）。📥 で落とした物は、site.css・enhance.css を `<style>` に埋め込み、スクリプトと `<meta name="entities">`（と録音の印）を外した**送付用の写し**なので、リポに置くと共通の見た目の直しが届かず、強調・宿題の済の印も動かず、一覧からも漏れる（`audit.js` の STANDALONE が止める）。
+
+本人の直しは次の形で受ける:
+1. **本人の言葉で受ける**（「09-11 の 3 つ目の決定の『9月18日』は『9月20日』」のように、ページ・場所・正しい文）。会話・LINE・依頼台帳のどれでもよい。分からない所は 1 回だけ聞く。
+2. **リポの元ページ**（`~/.plaud/farman-mtg-site/<日付>_<名前>.html`）を直す。本文と、同じ文がある結論カードの行（決まったこと・宿題）を両方直す。meta（entities・plaud-file-id・description）と `id="todo-n"`・`data-todo`・`data-asana`・`data-done` は触らない。
+3. 直したページを STEP 5.6（`gen-aux.js`）→ STEP 5.7（`audit.js` に**今回対象として**渡す）に通す。誤字の直しなら `plaud_規則.json` の typos にも 1 行足す（同じ誤字を次から止める）。
+4. 報告に「直した所（ページ・前→後）」を 1 行ずつ書く。
+
+OneDrive の旧受け口（`ドキュメント\farman\10_システム開発\議事録サイト\直した版の受け口\`）に HTML が置かれていたら、**取り込まずに**、元ページと比べて本文の字が変わった所だけを読み、上の 2 の形で元ページに書き戻す。受け口の物は `取り込み済み\` に日時つきで移し、報告に 1 行。
 
 ### STEP 7: Cloudflare Pages へデプロイする（Git連携 — pushで自動公開）
 
@@ -1501,6 +934,7 @@ if (git -C $repoDir status --porcelain) {
 5. Asana 登録: 0（宿題の登録は毎日の会議の取り込みが行う）
 6. 横断ページの再生成（STEP 5.6。`gen-aux.js` 実行 → entity-index / decisions / search-index.json）
 7. **自己監査の結果（STEP 5.7。`audit.js` の検出件数。0件であること。途中で検出・修正した項目があれば正直に列挙する）**
+7.5 載せていない録音（`node plaud-pending.js <サイト>` の 1 行目）と、直した誤字（語・回数）
 8. デプロイ結果（STEP 7。push の commit と URL。「push→自動公開・1〜2分」の旨）
 
 ---
@@ -1531,7 +965,7 @@ gh auth login
 
 スキルは自動的に以下を実行します：
 - `$env:USERPROFILE\.plaud\plaud-config.json` から設定を読み込む
-- Plaud APIで未HTML化ファイルを検出
+- `plaud-folders.ps1` の一覧とサイトの file_id を突き合わせて、まだ載っていない録音を検出（STEP 1）
 - HTML生成、index.html更新、Cloudflareデプロイ（Asana 登録はしない）
 
 ---
@@ -1541,18 +975,18 @@ gh auth login
 ### スキル実行時の注意
 - 新規HTMLがない場合（全て既にHTML化済み）は「追加なし」と報告して終了
 - Plaudのget_noteで3回リトライ後もデータが取れない場合はスキップして報告
-- index.htmlの`data-count`は必ず更新する
-- **HTMLのギミック省略は禁止**。参照ファイルとしてすでに作成済みの高品質ファイル（`2026-06-14_uematsu-mtg.html` 等）をRead toolで読み込んで参考にしてよい
-- **`.back-link` には必ず `white-space:nowrap;` を含めること**（省略すると「一覧に戻る」テキストが折り返す）
+- index.html は手で直さない（`data-count` も含めて gen-aux.js が毎回作る。STEP 5・5.6）
+- **飾り（浮かぶ粒・ふわっと出る・読み進みの帯・Google Fonts・ページ内スクリプト）は書かない**（2026-10-29 本人「飾りを落として、軽さ・崩れなさ・印刷を優先」）。見本は新しい作りのページ（例 `2026-09-11_farman-zentai.html`）を Read で読んでよい。古い作りのページを見本にしない
+- **「一覧に戻る」（`.back-link`）の折り返し止め（`white-space:nowrap`）は site.css が持つ**（ページには書かない。audit.js が site.css を見る）
 - **チャートは上記14種から選ぶ。プレースホルダーや空のチャートは禁止。必ず実際のMTG内容を反映した具体的な数値・ラベルを入れること**
-- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js` を更新したらHTML側の `enhance.js?v=N` を必ずインクリメントする（キャッシュ対策。現行 `enhance.js?v=6` / `edit-mode.js?v=13`）。enhance.js は読書ナビ・知能化に加え、**既読マーク（`plaud-read-*`）・ダークモード・モバイル目次シート・Markdown/PDF出力・チャートのホバー強調**（FABクラスター）も提供する。**客先送付用の 📥 ダウンロード（edit-mode.js）は、これら差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（上記「客先送付用ダウンロード」節参照）
+- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=2` / `enhance.css?v=10` / `enhance.js?v=8` / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）
 
 ### 別PC対応での注意
 - **初回セットアップが必須**: スキル初回実行前に `.\setup-plaud.ps1` を実行してください
 - **設定ファイルは環境依存**: 各PCで独立した `$env:USERPROFILE\.plaud\plaud-config.json` が生成されます
-- **OneDrive同期推奨**: 作業ディレクトリ（HTML出力先）をOneDrive同期フォルダに指定することで、複数PC間の一貫性が保たれます
+- **作業ディレクトリ**: サイトのリポの clone（`~/.plaud/farman-mtg-site`）。OneDrive には置かない
 - **APIトークン管理**: 設定ファイルはバージョン管理から除外してください（`.gitignore` に追加）
-- **トークン更新**: APIトークンが期限切れの場合は、上記「トークン期限切れエラー時」を参照して更新してください
+- **トークン更新**: Plaud のトークンが切れたら `plaud-folders.ps1` が中で `refresh-plaud-token.ps1` を呼んで取り直す（email/password が設定に要る）
 
 ---
 

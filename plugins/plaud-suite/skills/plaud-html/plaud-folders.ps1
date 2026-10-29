@@ -1,6 +1,6 @@
 ﻿# Plaud 4.0（2026-10 移行）のフォルダ判定。録音ごとに「どのフォルダか」を JSON に書き出す（トークンは画面にも出力にも出さない）。
 #   powershell -ExecutionPolicy Bypass -File plaud-folders.ps1 [-Out <出力 JSON>]
-#   出力: [{ file_id, name, folder, start_ms }]。folder はライブラリ直下のフォルダ名（社内・社外・講話録音・面接 など）。
+#   出力: [{ file_id, name, folder, start_ms, duration_ms, node_id, version_ms }]（duration_ms・node_id・version_ms は 2026-10-29 に足した。node_id と version_ms は plaud-trash.ps1 が使う）。folder はライブラリ直下のフォルダ名（社内・社外・講話録音・面接 など）。
 #         未振り分けの録音（システムの「Recordings」＝画面の「録音」）は folder="未振り分け"。
 # 流れ: plaud-config.json の api_token（ユーザーのトークン）→ 失効なら refresh-plaud-token.ps1 →
 #       POST /user-app/auth/workspace/token/{ws}（ワークスペースのトークン）→ GET /file-app/v4/folders/children をたどる。
@@ -53,7 +53,7 @@ function Get-Children([string]$nodeId) {
 function Get-Files([string]$nodeId, [int]$depth) {
   $out = @()
   foreach ($c in (Get-Children $nodeId)) {
-    if ($c.file_id) { $out += [pscustomobject]@{ file_id = $c.file_id; name = $c.name; start_ms = $c.created_at_show_ms } }
+    if ($c.file_id) { $out += [pscustomobject]@{ file_id = $c.file_id; name = $c.name; start_ms = $c.created_at_show_ms; duration_ms = $c.duration_ms; node_id = $c.node_id; version_ms = $c.version_ms } }
     elseif ($c.child_count -gt 0 -and $depth -lt 3) {
       $sub = Get-Files $c.node_id ($depth + 1)
       foreach ($s in $sub) { if (-not $s.name -or $s.name -eq '') { $s.name = $c.name }; if (-not $s.start_ms) { $s.start_ms = $c.created_at_show_ms } }
@@ -66,7 +66,7 @@ function Get-Files([string]$nodeId, [int]$depth) {
 $result = @()
 foreach ($f in (Get-Children 'root' | Where-Object { $_.type -eq 1 })) {
   $folder = switch ([int]$f.system_folder_type) { 1 { '未振り分け' } 2 { 'インポート' } 6 { 'ようこそ' } default { $f.name } }
-  foreach ($x in (Get-Files $f.node_id 0)) { $result += [pscustomobject]@{ file_id = $x.file_id; name = $x.name; folder = $folder; start_ms = $x.start_ms } }
+  foreach ($x in (Get-Files $f.node_id 0)) { $result += [pscustomobject]@{ file_id = $x.file_id; name = $x.name; folder = $folder; start_ms = $x.start_ms; duration_ms = $x.duration_ms; node_id = $x.node_id; version_ms = $x.version_ms } }
 }
 $result | ConvertTo-Json -Depth 4 | Set-Content -Path $Out -Encoding utf8
 $byFolder = $result | Group-Object folder | ForEach-Object { "$($_.Name) $($_.Count)" }

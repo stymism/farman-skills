@@ -1,6 +1,6 @@
 # plaud-html
 
-Plaud録音（またはJSONメモ）から議事録HTMLサマリーを生成し、`index.html` の更新・横断ページの再生成・Asana登録・Cloudflare Pagesへのデプロイまでを一気通貫で行うスキル。
+Plaud録音（またはJSONメモ）から議事録HTMLサマリーを生成し、`index.html` の更新・横断ページの再生成・Asana の済の反映（登録はしない）・Cloudflare Pagesへのデプロイまでを一気通貫で行うスキル。
 
 手順の詳細はすべて [`SKILL.md`](./SKILL.md) にある。**この README は概要・セットアップ・変更履歴のみ**を扱う。
 
@@ -11,13 +11,16 @@ Plaud録音（またはJSONメモ）から議事録HTMLサマリーを生成し�
 ## 概要
 
 ```
-Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接）
+Plaud録音 ──4.0 API（plaud-folders.ps1）──> フォルダ判定（社内/社外/講話/面接）・長さ・file_id
               │
               ├─MCP get_note──> AI要約（summary / action_items / key_topics）
               │
-              └─> HTML生成 ──> index.html更新 ──> gen-aux.js（横断ページ）
+              └─> HTML生成（meta plaud-file-id）──> index.html更新 ──> gen-aux.js（横断ページ）
                                                       │
-                                        Asana登録 ────┴──> git push ──> Cloudflare Pages
+                          audit.js（載せない関門・誤字の関門）──> git push ──> Cloudflare Pages
+規則（命名・誤字・社名・社員・振り分け・短い録音・伏せ字）の正本 = OneDrive 右腕AI\00_Resources\plaud_規則.json
+宿題の Asana 登録は、このスキルではしない（毎日の会議の取り込みが行う）
+夜の流れ: Asana を読む → asana-sync.js（済の印・宿題タブ）→ plaud-pending.js（載っていない録音の数）→ plaud-trash.ps1（短い録音の候補・一覧だけ）→ gen-aux.js → audit.js → push
 ```
 
 | 分類 | テーマ | テンプレート |
@@ -36,7 +39,8 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 | スキル本体 | 🟢 GitHubマーケットプレイス | `claude plugin update plaud-suite@farman-skills` |
 | Plaud MCP（`get_note`） | 🟢 OAuth | 初回のみ `mcp__plaud__login` |
 | 設定ファイル `~/.plaud/plaud-config.json` | 🔴 ローカル | 新PCセットアップZIP、または `setup-plaud.ps1` |
-| 作業ディレクトリ（HTML出力先） | 🟢 OneDrive同期 | configの `paths.work_dir` |
+| 作業ディレクトリ（HTML出力先） | 🟢 GitHub `stymism/farman-mtg-site` の clone（`~/.plaud/farman-mtg-site`） | 無ければ STEP 7 が clone |
+| 規則の正本 `plaud_規則.json`・承認の一覧 `plaud_掲載の承認.json` | 🟢 OneDrive `右腕AI\00_Resources\` | — |
 | git + GitHub認証 | 🔴 ローカル | デプロイするPCのみ `gh auth login` |
 
 新PCへの導入は `make-newpc-zip.ps1` が生成する `plaud-newpc-setup.zip` の `SETUP.cmd` ダブルクリックが最短。詳細は SKILL.md「初回セットアップ」を参照。
@@ -57,8 +61,13 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 |---|---|
 | `SKILL.md` | 手順の正本。実行時に読まれる |
 | `README.md` | このファイル。概要と変更履歴 |
-| `gen-aux.js` | 横断ページ生成（`search-index.json` / `entity-index.html` / `decisions.html`） |
-| `audit.js` | **生成物の自己監査（STEP 5.7・必須）。** 問題があれば exit 1。`node audit.js <work_dir> <対象.html…>` |
+| `gen-aux.js` | 一覧（index の 4 タブ）と横断ページ（`search-index.json` / `entity-index.html` / `decisions.html` / `partners/` / `data/*.json`）を会議ページから毎回作る。`node gen-aux.js <サイト>`。`data/todos.json` が Asana の物なら書かない |
+| `asana-sync.js` | 宿題と Asana をつなぐ（夜の流れ・SKILL.md STEP 6.5）。Claude が `get_tasks` で読んだ JSON を渡すと、ページの宿題の行に `data-asana`・`data-done="1"`（済）を付け、`data/todos.json` を作る。Asana には書かない。`node asana-sync.js --site <サイト> --asana <読んだ.json> --log <会議取り込み_log.md> --apply-pages`（試すときは `--dry-run`） |
+| `audit.js` | **生成物の自己監査（STEP 5.7・必須）。** 問題があれば exit 1。`node audit.js <work_dir> <対象.html…>`。新しい作り（site.css・結論カード・宿題の行の `id="todo-n"`・飾りとページ内スクリプト無し）の点検、📥 の単体 HTML（STANDALONE）・録音の印・二重掲載（file_id）・未振り分け・人の事情・誤字（plaud_規則.json の typos）の関門つき。file_id の分からない既存 28 本は `NO_FILEID_OK`（理由つき）で外す |
+| `plaud-folders.ps1` | Plaud 4.0 のフォルダ・長さ・file_id の一覧を JSON に（トークンは出さない） |
+| `plaud-pending.js` | 載っていない録音の数といちばん古い物の日数（朝の報告の止まりの検知 A-5）。`node plaud-pending.js <サイト>`（先に `plaud-folders.ps1`）。1 行目を朝の報告へ |
+| `plaud-trash.ps1` | 短い録音のゴミ箱。既定は一覧だけ。`-Apply -FileIds …` で本人が OK した物だけゴミ箱へ、`-Restore` で戻す |
+| `_archive/` | 使わなくなった手順の記録（旧 REST の STEP 1〜3・フォルダ ID の表・folder_map.json） |
 | `refresh-plaud-token.ps1` | Plaud RESTトークンの自動再取得（約24時間で失効）＋新PC用ZIPの再生成 |
 | `setup-plaud.ps1` | 設定ファイルの対話生成 |
 | `setup-newpc.ps1` / `setup-newpc.cmd` / `newpc-README.txt` | 新PCワンクリックセットアップ |
@@ -69,15 +78,18 @@ Plaud録音 ──REST──> フォルダ判定（社内/社外/講話/面接�
 
 ## 既知の制約
 
-- **Plaud MCP はフォルダ情報を返さない**（2026-07-28 再実測時点）。社内/社外/講話/面接の判定のみ REST API（`filetag_id_list`）に依存する。この制約が解消されれば `plaud-config.json` の Plaudトークンは不要になるため、SKILL.md の STEP 1-0 で毎回チェックする。
+- **Plaud MCP はフォルダ情報を返さない**。フォルダ・長さは 4.0 の API を `plaud-folders.ps1` で読む（2026-10-29〜。旧 REST の `filetag_id_list` は 4.0 で 0 件＝`_archive/SKILL_旧REST_261029.md`）。
 - **`get_file` は呼ばない。** トランスクリプト全文（20万文字規模）が返りトークン上限を超える。duration等は STEP 1 の REST 一覧から取る。
-- **Plaud RESTトークンは約24時間で失効**。STEP 1 冒頭で自動再取得する。
+- **Plaud のトークンは約24時間で失効**。`plaud-folders.ps1` が中で `refresh-plaud-token.ps1` を呼んで取り直す。
+- **ゴミ箱へ移す API**（`DELETE /file-app/v4/nodes/trash`・戻す `POST /file-app/v4/nodes/restore`）は新 Web（beta.plaud.ai）の JS から読んだ物で、2026-10-29 時点でまだ 1 度も呼んでいない。最初は 1 件で試す。
 - **`get_note` はアップロード直後に500を返すことがある**（AI要約の非同期生成中）。3回リトライして駄目なら次回に回す。
 
 ## 変更履歴
 
 | 日付 | 内容 |
 |---|---|
+| 2026-10-29 | **つなぎ合わせ**: `audit.js` を新しい作りの点検に置き換えた（hero-particle 5 個・scroll-progress・`const total`・index の「✅ ToDo N件」の点検を外し、site.css・結論カード・宿題の行の `id="todo-n"`／`data-todo`・Google Fonts 無し・ページ内 `<script>` 無し・飾り無しを見る）。**📥 の単体 HTML をサイトに入れない関門（STANDALONE）**を足した。録音の印の無い既存 28 本は `NO_FILEID_OK` で外し、74 本に `<meta name="plaud-file-id">` を入れた。102 本に `<meta name="description">`（前の一覧のカードの要約）を入れた（要約の段落を本文から外したので、一覧のカードの要約の元）。`gen-aux.js` は結論カードの行と下の一覧の同じ宿題（同じ `data-todo`）を 1 件に数える（2 倍に数えていた）。SKILL.md: STEP 6.5（夜の流れ・asana-sync.js）を足し、STEP 6.9 を「📥 の HTML は入れず、本人の言葉で元ページを直す」に |
+| 2026-10-29 | **規則の正本 `plaud_規則.json`（N1）・誤字の関門（A-7）・file_id での照合と二重掲載の関門（A-6）・止まりの検知 `plaud-pending.js`（A-5）・短い録音のゴミ箱 `plaud-trash.ps1`（N3・既定は一覧だけ）**。`plaud-folders.ps1` の出力に duration_ms・node_id・version_ms を足した。旧 REST の STEP 1〜3・STEP 1-0・フォルダ ID の表を `_archive/SKILL_旧REST_261029.md` へ。STEP 0 の OneDrive の点検を「clone と規則の正本」の点検に。STEP 6.9 は file_id が違う直しを入れない。設定の型からフォルダ ID の表を外した。サイトの `folder_map.json`（旧フォルダ ID・どこからも読まれていない・公開されていた）を `_archive/` へ |
 | 2026-08-10 | **`mcp__plaud__login` は OAuth コールバックに localhost:8199 を使う**ことが判明。検証用ローカル静的サーバーを8199で立てているとログインが `port 8199 is in use` で失敗する（エラー文は別プロセスのログインを示唆するが実際は自分のサーバー）。検証用ポートに8199を使わないルールを追記 |
 | 2026-08-10 | STEP 1-0 の再実測（MCPのフォルダ対応）。`list_files` に `folder_id` パラメータなし・レスポンスに `filetag_id_list` なしで **2026-07-06 / 07-28 から変化なし**。REST＋トークンによるフォルダ判定を継続。実測日を更新 |
 | 2026-08-10 | SKILL.md のHTMLテンプレが `enhance.css?v=2` のまま取り残されていたのを **`v=8`（実態の最頻値）に修正**。`audit.js` は全ページの最頻値を正とするため、テンプレどおりに新規生成すると監査に引っかかっていた。あわせて「新規生成前に既存ページの最頻値を確認する」コマンドを追記 |
