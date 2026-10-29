@@ -1,6 +1,6 @@
 ---
-description: 議事録（Plaud録音またはJSONメモ）からHTMLサマリーを生成し、index.htmlを更新、ToDoをAsanaに追加、Cloudflare Pagesへ自動デプロイする
-allowed-tools: [Bash, PowerShell, Read, Write, Edit, mcp__plaud__list_files, mcp__plaud__get_note, mcp__plaud__get_file, mcp__plugin_plaud-suite_plaud__list_files, mcp__plugin_plaud-suite_plaud__get_note, mcp__plugin_plaud-suite_plaud__get_file, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__list_files, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__get_note, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__get_file, mcp__608b9063-b2d8-4f66-9aab-51a572c20af1__create_tasks, mcp__608b9063-b2d8-4f66-9aab-51a572c20af1__search_objects]
+description: 議事録（Plaud録音またはJSONメモ）からHTMLサマリーを生成し、index.htmlを更新して議事録サイトに載せる（宿題の Asana 登録は毎日の会議の取り込みが行う）、Cloudflare Pagesへ自動デプロイする
+allowed-tools: [Bash, PowerShell, Read, Write, Edit, mcp__plaud__list_files, mcp__plaud__get_note, mcp__plaud__get_file, mcp__plugin_plaud-suite_plaud__list_files, mcp__plugin_plaud-suite_plaud__get_note, mcp__plugin_plaud-suite_plaud__get_file, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__list_files, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__get_note, mcp__490d06cb-7b8b-43fa-ae1d-eb967d5a51fa__get_file]
 ---
 
 # /plaud-html スキル
@@ -20,7 +20,7 @@ Plaud録音またはJSONメモから議事録HTMLサマリーを生成するス�
 - **ファイル名**：JSONの日付フィールド＋タイトルからローマ字スネークケースで生成（例: `260617.json` → `2026-06-17_farman-op-kaigi.html`）
 - **STEP 1〜3 はスキップ**し、STEP 4（HTML生成）から開始する
 - HTMLの内容・チャート・ToDoはJSONのメモ内容を元に生成する
-- その他のステップ（index更新・Asana・デプロイ）は通常通り実行する
+- その他のステップ（index更新・デプロイ）は通常通り実行する（Asana 登録はしない＝STEP 6）
 
 ## セットアップ（プラグイン配布版・2026-07-07改訂）
 
@@ -40,14 +40,14 @@ Plaud録音またはJSONメモから議事録HTMLサマリーを生成するス�
 
 | 要素 | 引き継ぎ方法 | PC毎の作業 |
 |------|-----------|----------|
-| **Plaud / Asana の MCPコネクタ**（`get_note`・`get_file`・`create_tasks` 等） | 🟢 Claudeアカウント連携＋plaud-suiteプラグインが `@plaud-ai/mcp` を同梱 | 初回にPlaudログインのみ |
+| **Plaud の MCPコネクタ**（`get_note`・`get_file` 等。Asana はこのスキルでは使わない＝STEP 6） | 🟢 Claudeアカウント連携＋plaud-suiteプラグインが `@plaud-ai/mcp` を同梱 | 初回にPlaudログインのみ |
 | **スキルファイル本体**（`SKILL.md`・`setup-plaud.ps1` 等） | 🟢 GitHubマーケットプレイス | 上記1行コマンドを1回 |
 | **設定ファイル** `~/.plaud/plaud-config.json`（Plaud RESTトークン・Cloudflare設定・パス） | 🔴 ローカル（同期されない） | 動作中PCからコピー、または `setup-plaud.ps1`（対話生成） |
 | **作業ディレクトリ**（HTML・index.html・kowa-knowledge.html） | 🟢 GitHub `stymism/farman-mtg-site`（非公開）の clone＝`~/.plaud/farman-mtg-site`（2026-10-29 から唯一の正本。OneDrive の旧作業場は `claude-data/_archive/plaud_summaries_261029`） | configの `paths.work_dir`（＝この clone） |
 | **git + GitHub認証**（STEP7のデプロイ用） | 🔴 ローカル | デプロイするPCのみ `gh auth login` を1回 |
 
 > **重要：MCPコネクタ と Plaud REST APIトークンは別物。**
-> - 議事録の中身（`get_note`/`get_file`）と Asana登録（`create_tasks`）は **MCPコネクタ** が担当 → アカウントログインで自動（MCPはOAuthで自前認証。`login` ツールあり）。
+> - 議事録の中身（`get_note`/`get_file`）は **MCPコネクタ** が担当（Asana 登録はこのスキルでは行わない＝STEP 6） → アカウントログインで自動（MCPはOAuthで自前認証。`login` ツールあり）。
 > - STEP1のフォルダ判定（社内/社外/講話）だけは MCP がフォルダ情報を返さないため、**web.plaud.ai の Bearer トークンで REST API を直接叩く**。これがローカル設定ファイルに必要なトークン。
 > - **このトークン依存は暫定。** 毎回 STEP 1-0 で「公式MCPがフォルダ情報に対応したか」をチェックし、対応が確認でき次第 REST API＋トークンを廃止する（下記「既知の制約」参照）。
 > - **Asana の PATトークンは不要**（MCPコネクタ経由のため）。設定ファイルにはGID対応表のみ保持する。
@@ -920,11 +920,13 @@ JS（barObs内）: `var pct=72;var arc=e.target.querySelector('#gaugeArc');arc.s
 ```html
 <!DOCTYPE html>
 <html lang="ja"><head>
+  <script src="noanim.js?v=1"></script>
   <meta charset="UTF-8"><link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="plaud-file-id" content="{Plaud の file_id。plaud-folders.ps1 の出力・list_files の id}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
-  <link rel="stylesheet" href="enhance.css?v=8">
+  <link rel="stylesheet" href="enhance.css?v=9">
   <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 :root{
@@ -1108,8 +1110,10 @@ function updateProgress(){const c=document.querySelectorAll('#actionList input:c
 document.querySelectorAll('#actionList input').forEach(cb=>cb.addEventListener('change',updateProgress));
 function confetti(){const cs=['#f59e0b','#fbbf24','#fcd34d','#78350f','#fff','#fef3c7'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';const s=6+Math.random()*10;p.style.cssText=`left:${Math.random()*100}vw;width:${s}px;height:${s}px;background:${cs[Math.floor(Math.random()*cs.length)]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s,${.8+Math.random()}s;animation-delay:${Math.random()*.5}s;`;document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());}}
 </script>
+<script>window.__restoreIntersectionObserver&&window.__restoreIntersectionObserver()</script>
 <script src="edit-mode.js?v=13"></script>
 <script src="enhance.js?v=6"></script>
+<!-- 2026-10-29: noanim.js（head の先頭）でページの中の「画面に入ったら動く」仕掛けを開いた時に全部出し、ここで本物に戻す（印刷・PDF で数字が 0・棒が空になるのを止める） -->
 </body></html>
 ```
 
@@ -1413,52 +1417,32 @@ node "$skillDir\audit.js" $workDir 2026-07-27_foo-mtg.html 2026-07-17_bar.html
 >
 > **検出が出たら、直す前に必ず1件を実ファイルで裏取りする。** 監査を信じて既存ページを書き換えると、正しいものを壊す。
 
-### STEP 6: ToDoをAsanaに追加する（社内・社外 のみ）
+### STEP 6: ToDo（宿題）は Asana に登録しない（2026-10-29〜・本人「宿題の正本は Asana・登録元は 1 つ」）
 
-> **⚠️ 講話録音（kowa）はAsana連携しない。** STEP 6は社内・社外ファイルのみ対象。
+**このスキルは Asana に何も登録しない。** 宿題の登録は、毎日の「会議の取り込み」（右腕AI・秘書の朝の流れ。手順は `右腕AI\秘書スペシャリスト\秘書スペシャリスト Resources\手順_会議の宿題のAsana登録.md` の A）だけが行う（登録元を 1 つにして、同じ宿題が 2〜3 件になる二重登録を止める）。議事録ページの宿題は、そのページの中の一覧として残し、Asana との相互リンクと済/未の反映は全体改善案 v1.0 §4 の AS2・AS5（これから作る）で行う。
+- 関門（AS6）: このスキルの実行中に `create_tasks`（Asana の登録）を呼んではいけない。夜の自走の記録・完了報告に「Asana 登録: 0（会議の取り込みが担当）」と書く。
+- 旧 STEP 6（「タスク：担当：期限」の形を瀬戸山の担当で登録・人ごと＋複数人に重ねて登録）は 2026-10-29 に外した。本文は git の履歴（skills-marketplace の 1.5.0 以前）にある。
 
-**社内・社外問わず**、ToDoテキストが以下のフォーマットに一致するもののみAsanaに登録する。
+### STEP 6.9: 本人が直したページを受け口から入れる（毎回・2026-10-29〜）
 
-#### 連携対象フォーマット（必須）
+本人がサイトの「✏️ 編集モード」→「💾 ファイルを更新」で保存した HTML は、OneDrive の受け口 `ドキュメント\farman\10_システム開発\議事録サイト\直した版の受け口\` に置かれる。STEP 7 の前に、同じ名前のページがリポにある物だけを置き換え、受け口の物は `取り込み済み\` に日時つきで移す。リポに無い名前は入れずに報告（新しいページは STEP 4 で作る物なので）。
 
+```powershell
+$inbox = Join-Path $env:OneDrive "ドキュメント\farman\10_システム開発\議事録サイト\直した版の受け口"
+$repoDir = "$env:USERPROFILE\.plaud\farman-mtg-site"
+if (Test-Path $inbox) {
+  $done = Join-Path $inbox "取り込み済み"; New-Item -ItemType Directory -Force $done | Out-Null
+  foreach ($f in Get-ChildItem $inbox -Filter *.html -File) {
+    $dst = Join-Path $repoDir $f.Name
+    if (Test-Path $dst) {
+      Copy-Item $f.FullName $dst -Force
+      Move-Item $f.FullName (Join-Path $done ("{0}_{1}" -f (Get-Date -Format 'yyMMdd-HHmm'), $f.Name)) -Force
+      Write-Host "本人の直しを入れた: $($f.Name)"
+    } else { Write-Host "⚠ リポに同じ名前が無いので入れていない（報告に 1 行）: $($f.Name)" -ForegroundColor Yellow }
+  }
+}
 ```
-タスク詳細：担当者1、担当者2：期限（任意）
-```
-
-| パターン | 例 |
-|---------|-----|
-| 担当者のみ | `農機のマーケット調査：井出、瀬戸山` |
-| 担当者＋期限 | `農機のマーケット調査：瀬戸山：6/12` |
-| 担当者1名のみ | `農機のマーケット調査：瀬戸山` |
-
-> **⚠️ 「：」が含まれないToDoはAsana連携しない**（スキップしても完了報告への記載も不要）。
-
-#### 担当者名とプロジェクトGIDの対応表
-
-| 担当者名 | プロジェクトGID |
-|---------|----------------|
-| 井出 | `1214760871469759` |
-| 田中 | `1214760871469775` |
-| 瀬戸山 | `1214760871469812` |
-| 井上 | `1214760900570651` |
-| 関根 | `1214760871469747` |
-| 豊田 | `1214760871469796` |
-| 青柳 | `1214760871469806` |
-| 複数人 | `1214855321951743` |
-
-#### タスク登録ルール
-
-- **assignee**: 全タスク共通で `1214760378378159`（瀬戸山 章）
-- **タスク名**: 最初の「：」より前の部分のみ
-- **notes**: `出典：{YYYY-MM-DD} {MTGタイトル}`
-- **due_on**: 期限がある場合は `YYYY-MM-DD` 形式（年は2026年）
-
-#### 登録先プロジェクトの決定
-
-| 担当者数 | 登録先 |
-|---------|--------|
-| **1名** | その担当者のプロジェクトのみ |
-| **2名以上** | 各担当者のプロジェクト ＋ 「複数人」プロジェクト |
+入れたページも STEP 5.7 の audit と STEP 7 の秘密の確かめを通る（直しで壊れていれば止まる）。
 
 ### STEP 7: Cloudflare Pages へデプロイする（Git連携 — pushで自動公開）
 
@@ -1514,7 +1498,7 @@ if (git -C $repoDir status --porcelain) {
 2. 社内/社外/講話録音 の分類結果
 3. 追加したビジュアライズの種類（チャートタイプ番号と内容）
 4. 講話録音の場合: 付与したテーマタグ一覧、kowa-knowledge.html 更新有無
-5. AsanaタスクのURL（何件追加したか）※社内・社外のみ
+5. Asana 登録: 0（宿題の登録は毎日の会議の取り込みが行う）
 6. 横断ページの再生成（STEP 5.6。`gen-aux.js` 実行 → entity-index / decisions / search-index.json）
 7. **自己監査の結果（STEP 5.7。`audit.js` の検出件数。0件であること。途中で検出・修正した項目があれば正直に列挙する）**
 8. デプロイ結果（STEP 7。push の commit と URL。「push→自動公開・1〜2分」の旨）
@@ -1548,7 +1532,7 @@ gh auth login
 スキルは自動的に以下を実行します：
 - `$env:USERPROFILE\.plaud\plaud-config.json` から設定を読み込む
 - Plaud APIで未HTML化ファイルを検出
-- HTML生成、index.html更新、Asana連携、Cloudflareデプロイ
+- HTML生成、index.html更新、Cloudflareデプロイ（Asana 登録はしない）
 
 ---
 

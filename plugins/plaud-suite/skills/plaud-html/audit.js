@@ -294,6 +294,48 @@ for (const f of details) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// A-2（2026-10-29 全体改善案 v1.0）: どの録音か分からないページ・振り分けていない録音のページは載せない
+//   ページの <meta name="plaud-file-id" content="..."> の録音が、Plaud のフォルダ（plaud-folders.ps1 の出力 JSON）で
+//   社内・社外・講話録音・学生発表 にあるか、本人が載せてよいと答えた一覧（plaud_掲載の承認.json）にあること。
+//   どちらも無い／meta が無いページは GATE（今回対象のページだけ。既存の 102 本は参考）。題名で推測しない。
+//   場所は環境変数で変えられる: PLAUD_FOLDERS（既定 %TEMP%\plaud-folders.json）・PLAUD_APPROVED（既定 OneDrive の 右腕AI\00_Resources\plaud_掲載の承認.json）
+// ─────────────────────────────────────────────────────────────
+{
+  const os = require('os');
+  const tryJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '')); } catch (e) { return null; } };
+  const foldersPath = process.env.PLAUD_FOLDERS || path.join(os.tmpdir(), 'plaud-folders.json');
+  const approvedPath = process.env.PLAUD_APPROVED || path.join(process.env.OneDrive || path.join(os.homedir(), 'OneDrive'), '右腕AI', '00_Resources', 'plaud_掲載の承認.json');
+  const folders = tryJson(foldersPath) || [];
+  const approved = new Set(((tryJson(approvedPath) || {})['件'] || []).map(x => x.file_id));
+  const okFolder = new Map((Array.isArray(folders) ? folders : [folders]).map(x => [x.file_id, x.folder]));
+  const PUBLISH = new Set(['社内', '社外', '講話録音', '学生発表']);
+  for (const f of details) {
+    const t = read(f);
+    const m = t.match(/<meta\s+name="plaud-file-id"\s+content="([^"]+)"/);
+    if (!m) { P('PUB', 'どの録音か分からない（<meta name="plaud-file-id"> が無い）。STEP 4 のテンプレートで入れる', f); continue; }
+    const id = m[1], fo = okFolder.get(id);
+    if (!(fo && PUBLISH.has(fo)) && !approved.has(id))
+      P('PUB', `録音 ${id} は Plaud で${fo ? '「' + fo + '」' : '見つからない'}・承認の一覧にも無い＝載せない（未振り分けは本人が振り分けるか朝の報告で答えるまで待つ）`, f);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// A-3（2026-10-29）: 健康・個人の事情・個人の給与など、社内のサイトにも載せない言葉（本文の文字だけを見る）
+// ─────────────────────────────────────────────────────────────
+{
+  const NG = [
+    // 10-29: 既存 102 本で試し、作物の「病気」・仕事の「時給」の相場・体験の注意「体調不良は申告」などの誤りが 10 本出たので、人の事情を指す言い方に絞った
+    [/診断を受け|と診断され|通院中|入院中|休職|休養中|手術を受け|心身の不調|メンタル不調で/, '人の健康の話'],
+    [/(さん|くん|氏)の(給与|月給|年収|給料)/, '個人の給与'],
+    [/(面接|面談)[：:]/, '面接・面談の記録'],
+  ];
+  for (const f of details) {
+    const body = read(f).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
+    for (const [re, why] of NG) { const m = body.match(re); if (m) P('PRIV', `${why}が本文にある（「${m[0].slice(0, 20)}」）＝載せる前に削るか本人に確かめる`, f); }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // 出力（2段）: ゲート＝今回対象＋サイト全体の問題 / 参考＝既存ページの積み残し
 // NAME（表記ゆれ疑い）はヒューリスティックのため常に参考扱いにする
 // ─────────────────────────────────────────────────────────────
