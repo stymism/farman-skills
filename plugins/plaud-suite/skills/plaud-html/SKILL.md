@@ -1497,7 +1497,12 @@ if ($srcHtml -lt ($repoHtml - 5)) {
 }
 
 # work_dir → repo にミラー（ルート直下ファイル＋functions。repo管理ファイルは /XD /XF で保護）
-robocopy $src $repoDir /MIR /LEV:1 /XD .git .wrangler functions node_modules /XF .gitignore SITE-REPO-README.md /NFL /NDL /NJH /NJS /NP
+robocopy $src $repoDir /MIR /LEV:1 /XD .git .wrangler functions node_modules /XF .gitignore SITE-REPO-README.md CLAUDE.md README.md *.ps1 *.secret* /NFL /NDL /NJH /NJS /NP
+# ⛔ 2026-10-29: 作業場の CLAUDE.md（Cloudflare のトークンを平文で含む）と README.md が /MIR でサイトに入り commit されていた（6d461fc〜）。/XF で除外し、push の前に下の秘密の確かめを必ず流す
+$leak = git -C $repoDir ls-files | Where-Object { $_ -match '(^|/)(CLAUDE|README)\.md$|\.ps1$|secret' }
+$tokHit = git -C $repoDir grep -nIE '(api[_ ]?token|Bearer)[^
+]{0,20}[A-Za-z0-9_-]{30,}' -- . 2>$null
+if ($leak -or $tokHit) { Write-Host "⛔ 秘密らしき物がサイトに入っている: $leak $(@($tokHit).Count) 件。push しない" -ForegroundColor Red; exit 1 }
 if (Test-Path "$src\functions") { robocopy "$src\functions" "$repoDir\functions" /MIR /NFL /NDL /NJH /NJS /NP }
 
 # 変更があれば commit → push（= Cloudflare Pages の自動デプロイが発火）
