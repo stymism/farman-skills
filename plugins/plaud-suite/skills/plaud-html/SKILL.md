@@ -97,15 +97,18 @@ gh auth login   # GitHub.com → HTTPS → Login with a web browser
 
 **→ 現状はフォルダ判定のみ Plaud REST API で `filetag_id_list` を参照する（下記 STEP 1 参照）。ただし毎回 STEP 1-0 のチェックを先に行うこと：**
 
-### ⛔ Plaud 4.0 移行でフォルダが読めない（2026-10-29 判明・毎回チェック → 直り次第そのまま再開）
+### ✅ Plaud 4.0 移行後のフォルダ判定（2026-10-29〜・これが正）
 
-**症状**: `GET {api_base}/file/simple/web` が HTTP 200 なのに `status: -1800907`・`msg: "Account migrated to 4.0. Please update and reinitialize."`・`data_file_list` 0 件。`refresh-plaud-token.ps1` で取り直したトークンでも、web.plaud.ai の localStorage の workspaceToken（wtype WT）でも同じ。ヘッダー `app-platform: web`・`edit-from: web`・`X-Web-Version` を足しても同じ。
-**Plaud の画面（web.plaud.ai・ビルド prod-261028）そのものも「すべてのファイル(0)」**＝Plaud 側の 4.0 の Web がまだこのアカウントに来ていない。トークンの取り直しでは直らない。
-**確かめた代わりの道（どれもフォルダが出ない＝2026-10-29）**: 公式 MCP（`list_files`・`get_file`）／公式 CLI `@plaud-ai/cli`（`files`・`file`・`search`）／公式ドキュメント docs.plaud.ai（llms.txt の全ページ）。
-**この状態のときの動き（決まり）**:
-1. STEP 1 の最初の REST 呼び出しで `status == -1800907` なら、**HTML 化・push をせずに止める**。題名・参加者・中身から社内/社外を推測して載せることはしない（社外の会議を社内サイトに載せる事故を防ぐ）。
-2. 完了報告（夜の自走なら記録）に「Plaud 4.0 移行待ちでフォルダが読めないため載せていない（-1800907）」と 1 行。ユーザーに手を頼まない（直すのは Plaud 側）。
-3. 次の回も同じチェックから始める。**-1800907 が返らなくなったら（`data_file_list` に件数があり `filetag_id_list` が読める）、そのまま通常の STEP 1 に進んで再開**し、報告に「Plaud 4.0 移行待ちが解けた」と 1 行。エンドポイントやフィールド名が変わっていたら、web.plaud.ai の読み込み済みの JS（`performance.getEntriesByType('resource')` の `app-initial-common.*.chunk.js`）から `/file/simple/web`・`/filetag/` を探して直し、この節を更新する。
+Plaud は 2026-10 に 4.0 へ移行した。**旧 API（`/file/simple/web` の `filetag_id_list`）は `status -1800907`「Account migrated to 4.0」で 0 件になり使えない**（古い Web 画面 web.plaud.ai〈plaud-web3〉も「すべてのファイル(0)」になる。新しい画面はデスクトップアプリ 1.4.x と新 Web の「ライブラリ」）。
+**フォルダは 4.0 の API で読む: 同じフォルダの `plaud-folders.ps1` を流す**（トークンは画面にも出力にも出さない）:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "<このスキルのフォルダ>\plaud-folders.ps1" -Out "$env:TEMP\plaud-folders.json"
+# 最後の行: PLAUD_FOLDERS: OK files=N | 未振り分け n / 社外 n / 社内 n / 面接 n / 講話録音 n ...
+```
+- 中身: ユーザーのトークン（`plaud-config.json` の api_token。失効なら `refresh-plaud-token.ps1`）→ `GET /team-app/workspaces/list` → `POST /user-app/auth/workspace/token/{workspace_id}`（ワークスペースのトークン `data.workspace_token`）→ `GET /file-app/v4/folders/children?node_id=root`（と `&cursor=`）をたどる。ライブラリ直下のフォルダ名がそのまま分類（社内・社外・講話録音・面接・学生発表 …）。システムの「Recordings」（画面の「録音」・`system_folder_type 1`）は **未振り分け**。
+- 録音 1 件は「名前のついた入れ物のノード（type 1）」の下に `file_id` を持つノードがある形。`file_id` はコネクタ（`list_files` の `id`）と同じ（2026-10-29 に 1 件で照合）。
+- 出力 JSON の `folder` を STEP 2 の分類に使う（旧表の「フォルダID含む」は「folder がその名前」と読む）。`name`・`start_ms` も入る。`duration` は入らないので、要るときはコネクタの `list_files` から取る。
+- **`plaud-folders.ps1` が失敗したら（status が 0 以外・トークンが取れない）、HTML 化・push をせずに止めて報告に 1 行**。題名・参加者・中身から社内/社外を推測しない。
 
 **STEP 1-0（毎回実行）: 公式MCPのフォルダ対応チェック**
 1. `mcp__plaud__list_files`（プラグイン環境では `mcp__plugin_plaud-suite_plaud__list_files`。存在する方を使う）を1ページ（page_size=10）呼び、レスポンスの各アイテムに `filetag_id_list`・`filetag`・`folder` 等のフォルダ情報フィールドが**含まれるか**を確認する（あわせて `list_files` スキーマに `folder_id` パラメータが追加されていないかも見る）
@@ -321,7 +324,7 @@ Write-Host "`n✅ プリフライト完了。処理を続行します。" -Foreg
 
 **前提：Plaud Web上でのフォルダ振り分けは事前に完了しているものとする。**
 
-**⓪' Plaud 4.0 移行のチェック（既知の制約「⛔ Plaud 4.0 移行」）**: 下のトークン処理の後、一覧の REST が `status -1800907` を返したら、ここで止めて報告に 1 行（推測で載せない）。
+**⓪' 4.0 移行後（2026-10-29〜）は、下の REST 一覧の代わりに `plaud-folders.ps1` でフォルダを読む（既知の制約「✅ Plaud 4.0 移行後のフォルダ判定」）。下の `/file/simple/web` の手順は旧 API の記録として残す（-1800907 が返る）。**
 
 **⓪ まず STEP 1-0（既知の制約セクション参照）を実行する：** `mcp__plaud__list_files` のレスポンスにフォルダ情報（`filetag_id_list` 等）が含まれるようになったかをチェック。**対応済みならMCPでフォルダ判定し、以下のREST API＋トークン処理は全てスキップ**（あわせてSKILL.md/README.mdを更新しユーザーに報告）。未対応なら以下へ進む。
 
