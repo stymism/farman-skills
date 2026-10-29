@@ -37,7 +37,7 @@ if (Test-Path $cfgDst) {
   $cfg = Get-Content $cfgDst -Raw | ConvertFrom-Json
   $wd = $cfg.paths.work_dir -replace '~', $env:USERPROFILE
   if (-not (Test-Path $wd)) {
-    $newWd = if ($env:OneDrive) { Join-Path $env:OneDrive "plaud_summaries" } else { Join-Path $env:USERPROFILE "Documents\plaud_summaries" }
+    $newWd = Join-Path $env:USERPROFILE ".plaud\farman-mtg-site"   # 2026-10-29: 作業場はサイトのリポジトリ 1 つ（STEP 7 が無ければ clone する）
     $cfg.paths.work_dir = $newWd
     $cfg | ConvertTo-Json -Depth 10 | Set-Content $cfgDst -Encoding UTF8
     New-Item -ItemType Directory -Force $newWd | Out-Null

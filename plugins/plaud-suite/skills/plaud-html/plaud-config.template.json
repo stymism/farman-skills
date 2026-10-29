@@ -31,7 +31,7 @@
                        "project_name":  "farman-mtg"
                    },
     "paths":  {
-                  "work_dir":  "~/OneDrive/ドキュメント/plaud_summaries",
+                  "work_dir":  "~/.plaud/farman-mtg-site",
                   "html_output":  ".",
                   "index_file":  "index.html",
                   "kowa_knowledge_file":  "kowa-knowledge.html"

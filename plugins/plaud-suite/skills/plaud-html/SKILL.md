@@ -43,7 +43,7 @@ Plaud録音またはJSONメモから議事録HTMLサマリーを生成するス�
 | **Plaud / Asana の MCPコネクタ**（`get_note`・`get_file`・`create_tasks` 等） | 🟢 Claudeアカウント連携＋plaud-suiteプラグインが `@plaud-ai/mcp` を同梱 | 初回にPlaudログインのみ |
 | **スキルファイル本体**（`SKILL.md`・`setup-plaud.ps1` 等） | 🟢 GitHubマーケットプレイス | 上記1行コマンドを1回 |
 | **設定ファイル** `~/.plaud/plaud-config.json`（Plaud RESTトークン・Cloudflare設定・パス） | 🔴 ローカル（同期されない） | 動作中PCからコピー、または `setup-plaud.ps1`（対話生成） |
-| **作業ディレクトリ**（HTML・index.html・kowa-knowledge.html） | 🟢 そのPCのOneDrive同期 | configの `paths.work_dir` で指定 |
+| **作業ディレクトリ**（HTML・index.html・kowa-knowledge.html） | 🟢 GitHub `stymism/farman-mtg-site`（非公開）の clone＝`~/.plaud/farman-mtg-site`（2026-10-29 から唯一の正本。OneDrive の旧作業場は `claude-data/_archive/plaud_summaries_261029`） | configの `paths.work_dir`（＝この clone） |
 | **git + GitHub認証**（STEP7のデプロイ用） | 🔴 ローカル | デプロイするPCのみ `gh auth login` を1回 |
 
 > **重要：MCPコネクタ と Plaud REST APIトークンは別物。**
@@ -77,7 +77,7 @@ winget install --id GitHub.cli
 gh auth login   # GitHub.com → HTTPS → Login with a web browser
 ```
 
-> **seedが必要な理由:** 新PCの作業ディレクトリは空であり、空のままSTEP7を実行すると公開サイトを空内容で上書きする事故につながる（STEP7に自動ガードあり＝空に近いwork_dirからのデプロイは中止される）。SETUP.cmd 再実行で `stymism/farman-mtg-site` からサイト一式が作業ディレクトリに複製される。
+> **（2026-10-29〜 作業場はリポの clone なので seed は不要＝STEP 7 が無ければ clone する。下は旧方式の記録）** **seedが必要な理由:** 新PCの作業ディレクトリは空であり、空のままSTEP7を実行すると公開サイトを空内容で上書きする事故につながる（STEP7に自動ガードあり＝空に近いwork_dirからのデプロイは中止される）。SETUP.cmd 再実行で `stymism/farman-mtg-site` からサイト一式が作業ディレクトリに複製される。
 
 ### 📁 設定ファイルの場所
 
@@ -1468,50 +1468,30 @@ node "$skillDir\audit.js" $workDir 2026-07-27_foo-mtg.html 2026-07-17_bar.html
 デプロイは**サイトrepo `stymism/farman-mtg-site`（非公開）への git push**で行う。Cloudflare Pages がGit連携で自動ビルド・公開する。旧方式（`wrangler pages deploy` 直接アップロード）は**廃止** — Git連携プロジェクトはwranglerからの直接アップロードを受け付けない。
 
 ```powershell
-# 設定ファイルから作業ディレクトリを読み込む
-$configPath = "$env:USERPROFILE\.plaud\plaud-config.json"
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$src = $config.paths.work_dir -replace '~', $env:USERPROFILE
+# 2026-10-29（土台の見直し・本人「1つにする」）: 作業場（OneDrive の plaud_summaries）は畳んだ。サイトのリポジトリが唯一の正本で、
+# HTML・index は最初からここに書く（config の paths.work_dir もここを指す）。robocopy の写しは無い
 $repoDir = "$env:USERPROFILE\.plaud\farman-mtg-site"
 $repoUrl = "https://github.com/stymism/farman-mtg-site.git"
 
-# git 未導入なら、ここでデプロイをスキップして案内（HTML生成自体は完了済み）
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-  Write-Host "⚠ git が未インストールのため、デプロイをスキップします。" -ForegroundColor Yellow
-  Write-Host "   → git導入・gh auth login 後、このSTEP7を再実行してください。" -ForegroundColor Yellow
-  Write-Host "   （HTML生成・index更新・Asana登録は完了しています）" -ForegroundColor Yellow
+  Write-Host "⚠ git が未インストールのため、デプロイをスキップします（gh auth login 後に再実行）" -ForegroundColor Yellow
   return
 }
-
-# サイトrepoのローカルクローン（無ければ作成）→ 最新化
+# 無ければ clone（新しい PC はこれだけで作業場ができる）。あれば最新化
 if (-not (Test-Path "$repoDir\.git")) { git clone $repoUrl $repoDir }
 git -C $repoDir pull --rebase origin main
 
-# ガード: work_dirがrepoよりHTML大幅減なら中止（空work_dirで公開サイトを消す事故防止）
-$srcHtml  = @(Get-ChildItem $src -Filter *.html -File -ErrorAction SilentlyContinue).Count
-$repoHtml = @(Get-ChildItem $repoDir -Filter *.html -File).Count
-if ($srcHtml -lt ($repoHtml - 5)) {
-  Write-Host "⛔ 中止: work_dirのHTML($srcHtml)がサイトrepo($repoHtml)より大幅に少ない。" -ForegroundColor Red
-  Write-Host "   新PCなら先に作業ディレクトリをサイトrepoからseedすること（セットアップ節参照）。" -ForegroundColor Yellow
-  return
-}
+# ⛔ 秘密の確かめ（2026-10-29 の事故＝作業場の CLAUDE.md〈トークン平文〉が公開リポに入っていた、の再発防止）。入っていれば push しない
+git -C $repoDir add -A
+$leak = git -C $repoDir diff --cached --name-only | Where-Object { $_ -match '(^|/)(CLAUDE|README)\.md$|\.ps1$|\.pptx$|secret|plaud-config' }
+$tokHit = @(git -C $repoDir grep --cached -nIE '(api[_ ]?token|Bearer)[^"]{0,20}[A-Za-z0-9_-]{30,}' 2>$null)
+if ($leak -or $tokHit.Count) { git -C $repoDir reset -q; Write-Host "⛔ 秘密らしき物がサイトに入る: $leak / $($tokHit.Count) 件。push しない" -ForegroundColor Red; exit 1 }
 
-# work_dir → repo にミラー（ルート直下ファイル＋functions。repo管理ファイルは /XD /XF で保護）
-robocopy $src $repoDir /MIR /LEV:1 /XD .git .wrangler functions node_modules /XF .gitignore SITE-REPO-README.md CLAUDE.md README.md *.ps1 *.secret* /NFL /NDL /NJH /NJS /NP
-# ⛔ 2026-10-29: 作業場の CLAUDE.md（Cloudflare のトークンを平文で含む）と README.md が /MIR でサイトに入り commit されていた（6d461fc〜）。/XF で除外し、push の前に下の秘密の確かめを必ず流す
-$leak = git -C $repoDir ls-files | Where-Object { $_ -match '(^|/)(CLAUDE|README)\.md$|\.ps1$|secret' }
-$tokHit = git -C $repoDir grep -nIE '(api[_ ]?token|Bearer)[^
-]{0,20}[A-Za-z0-9_-]{30,}' -- . 2>$null
-if ($leak -or $tokHit) { Write-Host "⛔ 秘密らしき物がサイトに入っている: $leak $(@($tokHit).Count) 件。push しない" -ForegroundColor Red; exit 1 }
-if (Test-Path "$src\functions") { robocopy "$src\functions" "$repoDir\functions" /MIR /NFL /NDL /NJH /NJS /NP }
-
-# 変更があれば commit → push（= Cloudflare Pages の自動デプロイが発火）
+# 変更があれば commit → push（= Cloudflare Pages の Git 連携が自動で公開。Cloudflare の API トークンは使わない）
 if (git -C $repoDir status --porcelain) {
-  git -C $repoDir add -A
   git -C $repoDir commit -m "deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
   git -C $repoDir push origin main
-  Write-Host "✅ push完了 → Cloudflare Pages が自動デプロイします（公開まで1〜2分）" -ForegroundColor Green
-  Write-Host "   https://farman-mtg.pages.dev" -ForegroundColor Cyan
+  Write-Host "✅ push完了 → Cloudflare Pages が自動で公開（1〜2分）: https://farman-mtg.pages.dev" -ForegroundColor Green
 } else {
   Write-Host "変更なし（デプロイ不要）" -ForegroundColor Yellow
 }
@@ -1519,7 +1499,7 @@ if (git -C $repoDir status --porcelain) {
 
 デプロイ完了後、URL `https://farman-mtg.pages.dev` を表示する（Pagesビルド完了まで1〜2分）。
 
-> **認証エラーになるPCでは**、一度だけ `gh auth login`（GitHub CLI）を実行してから再実行する。robocopyの終了コード1〜3は正常（コピー実行済み）なのでエラー扱いしない。
+> **認証エラーになるPCでは**、一度だけ `gh auth login`（GitHub CLI）を実行してから再実行する。
 
 ### （旧STEP 8: 配布ZIP更新 — 廃止）
 

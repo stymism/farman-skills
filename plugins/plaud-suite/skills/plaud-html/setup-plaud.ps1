@@ -169,7 +169,7 @@ if ([string]::IsNullOrWhiteSpace($cloudflare_token)) {
 
 Write-Header "作業ディレクトリ設定"
 
-$default_work_dir = "~/OneDrive/ドキュメント/plaud_summaries"
+$default_work_dir = "~/.plaud/farman-mtg-site"   # 2026-10-29: 作業場はサイトのリポジトリ 1 つ（git clone で作る）
 Write-Host "作業ディレクトリを指定してください。" -ForegroundColor Cyan
 Write-Host "（デフォルト: $default_work_dir）" -ForegroundColor Gray
 Write-Host ""
