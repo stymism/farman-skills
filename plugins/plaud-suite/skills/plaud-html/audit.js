@@ -143,7 +143,9 @@ if (exists("site.css")) {
   const nowrap = ruleHas(css, ".back-link", "white-space", "nowrap");
   if (nowrap === null) P("ASSET", "site.css に .back-link のルールが無い");
   else if (!nowrap) P("ASSET", "site.css の .back-link に white-space:nowrap が無い（「一覧に戻る」が折り返す）");
-  if (/fonts\.(googleapis|gstatic)\.com/.test(css)) P("ASSET", "site.css が Google Fonts を読んでいる（既定の日本語の字にする）");
+  // 2026-11-01 本人「シンプルになりすぎ。ダサい」「スタイリッシュ性は勝手に消さないで」: 字（Noto Sans JP）と表紙のグラデーションは site.css が持つ。消したら止める
+  if (!/fonts\.googleapis\.com\/css2\?family=Noto\+Sans\+JP/.test(css)) P("ASSET", "site.css が Noto Sans JP を読んでいない（11-01 に戻した見た目が消えている）");
+  if (!/\.detail-header\{[^}]*linear-gradient/.test(css)) P("ASSET", "site.css のヘッダー（.detail-header）にグラデーションが無い（11-01 に戻した見た目が消えている）");
 }
 /** 横断ページ・data/*.json は大きいので 1 回だけ読む */
 const _cache = {};

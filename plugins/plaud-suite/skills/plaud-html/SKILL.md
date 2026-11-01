@@ -353,7 +353,7 @@ $rec | Where-Object { -not $onSite[$_.file_id] } | Select-Object file_id, folder
 
 #### ▼ 必ず守る形（1 つでも抜けたら NG・STEP 5.7 の audit と下の自己点検で見る）
 
-- [ ] `<head>` は テンプレのとおり: `site.css?v=2` → `enhance.css?v=10` の順で読む。**Google Fonts（`@import`・`<link>`）は読まない**（1 ページ 1.25MB の通信の 85% だった）。字は `site.css` の `system-ui, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif`。ページで `font-family` を書かない
+- [ ] `<head>` は テンプレのとおり: `site.css?v=3` → `enhance.css?v=10` の順で読む。**ページに Google Fonts（`@import`・`<link>`）を書かない**。字（Noto Sans JP）は `site.css` の先頭で 1 回だけ読む（11-01 本人「シンプルになりすぎ。ダサい」で戻した。audit.js が消えたら止める）。ページで `font-family` を書かない
 - [ ] `<meta name="plaud-file-id">`（録音の印）と `<meta name="entities">`、`<meta name="description">`（一覧のカードの要約。要約の段落を本文に書かない代わり。10-29 に既存 102 本へも前の一覧のカードの要約を入れた）を入れる
 - [ ] ヘッダーは **1 行の帯**（高さ 120px 目安）: 戻る＋パンくず／バッジ＋題名／日付・録音の長さ・読了時間・場所・参加者。**議題の行は書かない**（目次・見出しと重複）。「FARMAN Inc.」の札も書かない
 - [ ] 本文 `<div class="detail-content" id="detailContent">` の**先頭に結論カード `<section class="concl-card" id="summary-card">`**（決まったこと 3〜5 行・宿題・次回）。**要約の段落（200 字）は書かない**（カードが代わり）
@@ -729,7 +729,7 @@ index の作り（U2・全体改善案 v1.0 §2-2）:
 
 - 全文検索は、一覧の検索欄に字を入れた時だけ `search-index.json` を読む（開くたびには読まない）。カードに `data-text` は持たない。
 - 前の URL はそのまま動く: `index.html?q=語`（ページのキーワードのリンク）→ 一覧で検索、`index.html?filter=internal`（パンくず）→ 一覧で種類しぼり、`#week` `#todo` `#partner` `#list` でタブ。
-- 見た目: Google Fonts は使わずシステムフォント、飾り（粒・ノイズ・出現の動き・光沢）無し、字は 12px 以上。CSS は gen-aux.js が `style.css` に書く（`style.css` を手で直さない）。
+- 見た目: 字は Noto Sans JP（style.css・site.css の先頭で読む）、濃い緑のグラデーションの表紙・影のあるカード・丸いタブ（11-01 に戻した。本人「スタイリッシュ性は勝手に消さないで」）。動く飾り（粒・ノイズ・出現の動き）は無し、字は 12px 以上。CSS は gen-aux.js が `style.css` に書く（`style.css` を手で直さない）。
 - audit.js が見る所は残している: `class="mtg-card"`＋`data-type`、`<strong data-count>` 4 つ（全件・社内・社外・講話録音の順）、`id="count">N件表示中`。
 - 既定のタブを変えるときは gen-aux.js の `DEFAULT_TAB` だけ（U5 の判断: 10-29 は「今週」のまま）。
 
@@ -737,7 +737,7 @@ index の作り（U2・全体改善案 v1.0 §2-2）:
 
 ### STEP 5.5: kowa-knowledge.html を更新する（講話録音が追加された場合のみ）
 
-`kowa-knowledge.html` は gen-aux.js が作らない（手で保つ）。講話録音が 1 件以上増えたら更新する。フォントは Google Fonts を使わずシステムフォント、字は 12px 以上（10-29 に直した）。
+`kowa-knowledge.html` は gen-aux.js が作らない（手で保つ）。講話録音が 1 件以上増えたら更新する。字は site.css と同じ Noto Sans JP、字は 12px 以上（11-01）。
 
 **実装の決まり（壊さない）:**
 - テーマのボタン: `onclick="filterTheme(null,'テーマ名')"`（第 1 引数は null 固定）
@@ -976,7 +976,7 @@ gh auth login
 - 新規HTMLがない場合（全て既にHTML化済み）は「追加なし」と報告して終了
 - Plaudのget_noteで3回リトライ後もデータが取れない場合はスキップして報告
 - index.html は手で直さない（`data-count` も含めて gen-aux.js が毎回作る。STEP 5・5.6）
-- **飾り（浮かぶ粒・ふわっと出る・読み進みの帯・Google Fonts・ページ内スクリプト）は書かない**（2026-10-29 本人「飾りを落として、軽さ・崩れなさ・印刷を優先」）。見本は新しい作りのページ（例 `2026-09-11_farman-zentai.html`）を Read で読んでよい。古い作りのページを見本にしない
+- **動く飾り（浮かぶ粒・ふわっと出る・読み進みの帯）・ページごとの Google Fonts・ページ内スクリプトは書かない**（2026-10-29 本人「飾りを落として、軽さ・崩れなさ・印刷を優先」）。**ただし見た目の格好良さ（グラデーションの表紙・太い字・影のあるカード）は site.css が持つので消さない**（2026-11-01 本人「スタイリッシュ性は勝手に消さないで」）。見本は新しい作りのページ（例 `2026-09-11_farman-zentai.html`）を Read で読んでよい。古い作りのページを見本にしない
 - **「一覧に戻る」（`.back-link`）の折り返し止め（`white-space:nowrap`）は site.css が持つ**（ページには書かない。audit.js が site.css を見る）
 - **チャートは上記14種から選ぶ。プレースホルダーや空のチャートは禁止。必ず実際のMTG内容を反映した具体的な数値・ラベルを入れること**
 - **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=2` / `enhance.css?v=10` / `enhance.js?v=8` / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）

@@ -7,7 +7,7 @@
 
    出力（work_dir の中）:
      index.html              4 つのタブ（今週・宿題・取引先・一覧）。一覧カードは要約 60 字＋「決定 n・宿題 n」
-     style.css               index と横断ページの共通 CSS（システムフォント・字は 12px 以上・飾り無し）
+     style.css               index と横断ページの共通 CSS（Noto Sans JP・字は 12px 以上・動く飾り無し・11-01 にグラデーションと影を戻した）
      search-index.json       全文検索用。index は検索欄を使ったときだけ読む
      data/decisions.json     決定の全部（会議ごと）
      data/partners.json      取引先ごとの年表の元（社名は正表記にそろえる）
@@ -393,11 +393,13 @@ write('search-index.json', JSON.stringify(records.map(r => ({ file: r.file, date
 
 /* ---- 共通 CSS（飾り無し・システムフォント・字は 12px 以上） ---- */
 const CSS = `/* style.css — gen-aux.js が作る（手で直さない。直すなら gen-aux.js の CSS を） */
-:root{--ink:#1f2937;--sub:#374151;--mute:#5b6472;--line:#e3e5e8;--bg:#f6f6f3;--card:#fff;
---in:#1b4332;--inbg:#e6f2ea;--ex:#7c2d12;--exbg:#fbeee2;--ko:#312e81;--kobg:#ebebfa;--red:#b42318;--redbg:#fdecea;--link:#1d4ed8;--hl:#fff3c4;}
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap");
+:root{--ink:#1f2937;--sub:#374151;--mute:#5b6472;--line:#e3e5e8;--bg:#eef5f0;--card:#fff;
+--in:#1b4332;--inbg:#e6f2ea;--ex:#7c2d12;--exbg:#fbeee2;--ko:#312e81;--kobg:#ebebfa;--red:#b42318;--redbg:#fdecea;--link:#1d4ed8;--hl:#fff3c4;
+--sh1:0 1px 3px rgba(16,40,28,.08);--sh2:0 6px 20px rgba(16,40,28,.10);}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{font-family:system-ui,-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+body{font-family:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;letter-spacing:.02em;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 a{color:var(--link)}
 button,input,select{font:inherit;color:inherit}
 .top{background:var(--in);color:#fff}
@@ -492,8 +494,37 @@ details.all summary{cursor:pointer;color:var(--sub)}
 details.all ol{padding-left:20px;margin-top:6px}
 details.all li{padding:2px 0}
 .empty{color:var(--mute);text-align:center;padding:30px 0}
-@media(min-width:768px){.tab{font-size:16px}.top h1{font-size:20px}}
-@media print{.tabs,.filters,.more,.foot{display:none}body{background:#fff}.top{background:#fff;color:#111;border-bottom:2px solid #111}.top a{color:#111}}
+/* 2026-11-01 見た目を戻す（本人「シンプルになりすぎ。ダサい」「スタイリッシュ性は勝手に消さないで」）
+   前の作りの濃い緑のグラデーション・淡い円・太い字・影のあるカード・丸いタブを、動く飾りなしで戻す */
+.top{position:relative;overflow:hidden;background:radial-gradient(circle at 8% 20%,rgba(255,255,255,.07) 0 90px,transparent 91px),radial-gradient(circle at 90% 75%,rgba(255,255,255,.06) 0 80px,transparent 81px),radial-gradient(circle at 55% 35%,rgba(255,255,255,.05) 0 28px,transparent 29px),linear-gradient(135deg,#2d6a4f 0%,#1b4332 55%,#12301f 100%)}
+.top-in{padding:18px 16px 20px}
+.top h1{font-size:22px;font-weight:900;letter-spacing:.02em}
+.back{border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:2px 10px;background:rgba(255,255,255,.07)}
+.top.hero .top-in{display:block;padding:44px 16px 40px}
+.top.hero .eyebrow{font-size:12px;font-weight:700;letter-spacing:.25em;opacity:.8}
+.top.hero h1{font-size:clamp(34px,6vw,50px);line-height:1.15;margin:8px 0 6px;letter-spacing:.03em}
+.top.hero .lead{font-size:14px;opacity:.85}
+.top.hero .stats{gap:12px;margin-top:22px;opacity:1}
+.top.hero .stats span{display:flex;flex-direction:column;min-width:86px;padding:10px 16px 9px;border-radius:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:700;line-height:1.3}
+.top.hero .stats strong{font-size:26px;font-weight:900;line-height:1.15;margin:0}
+.tabs{background:rgba(255,255,255,.96);border-bottom:0;box-shadow:var(--sh1)}
+.tabs-in{gap:8px;padding:10px 16px}
+.tab{border:1px solid var(--line);border-radius:999px;padding:7px 4px;background:#fff}
+.tab[aria-selected="true"]{background:var(--in);border-color:var(--in);color:#fff}
+.tab:not([aria-selected="true"]):hover{border-color:#9fb8a8;color:var(--in)}
+.wrap{padding-top:20px}
+.wk,.td,.pl a,.mtg-card,.dg,.sum,.tl .box,.more{border:0;border-radius:14px;box-shadow:var(--sh1)}
+.wk{padding:14px 18px;margin-bottom:12px}
+.wk h3{font-size:15px;font-weight:900}
+.mtg-card,.pl a{transition:transform .15s,box-shadow .15s}
+.mtg-card:hover,.pl a:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.mtg-card{padding:14px 18px}
+.mtg-card .c-t{font-weight:900}
+.card-grid{gap:12px}.pl{gap:10px}
+.sbox,.sel{border-radius:999px;border-color:var(--line);box-shadow:var(--sh1)}
+.chip{box-shadow:var(--sh1);border-color:transparent}
+@media(min-width:768px){.tab{font-size:16px}.top h1{font-size:24px}.top.hero h1{font-size:50px}}
+@media print{.tabs,.filters,.more,.foot{display:none}body{background:#fff}.top,.top.hero{background:#fff;color:#111;border-bottom:2px solid #111}.top a{color:#111}.top.hero .top-in{padding:0 0 8px}.top.hero .stats span{border-color:#999;background:#fff}.wk,.td,.pl a,.mtg-card,.dg,.sum,.tl .box{box-shadow:none;border:1px solid #bbb}}
 `;
 const CSSV = crypto.createHash('md5').update(CSS).digest('hex').slice(0, 8);
 write('style.css', CSS);
@@ -508,7 +539,7 @@ function page({ title, h1, sub, body, script, up = '', back = true, extraHead = 
 <title>${esc(title)}</title>
 <link rel="stylesheet" href="${up}style.css?v=${CSSV}">${extraHead}
 </head><body>
-<header class="top"><div class="top-in">${back ? `<a class="back" href="${up}index.html">‹ 一覧</a>` : ''}<h1>${h1}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div></header>
+<header class="top${back ? '' : ' hero'}"><div class="top-in">${back ? `<a class="back" href="${up}index.html">‹ 一覧</a>` : '<div class="eyebrow">FARMAN CO., LTD.</div>'}<h1>${h1}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div></header>
 ${body}
 ${script ? `<script>${script}</script>` : ''}
 </body></html>`;
@@ -611,7 +642,7 @@ if(q){$('q').value=q;search();h='list'}
 show(h||DEF,false);
 })();`;
 const statsHtml = `<div class="stats"><span><strong data-count="${cnt.all}">${cnt.all}</strong> 全件</span><span><strong data-count="${cnt.internal}">${cnt.internal}</strong> 社内</span><span><strong data-count="${cnt.external}">${cnt.external}</strong> 社外</span><span><strong data-count="${cnt.kowa}">${cnt.kowa}</strong> 講話録音</span></div>`;
-const indexHtml = page({ title: 'FARMAN 議事録', h1: 'FARMAN 議事録', back: false, body: indexBody, script: indexScript }).replace('<h1>FARMAN 議事録</h1>', '<h1>FARMAN 議事録</h1>' + statsHtml);
+const indexHtml = page({ title: 'FARMAN 議事録', h1: 'FARMAN 議事録', back: false, body: indexBody, script: indexScript }).replace('<h1>FARMAN 議事録</h1>', '<h1>FARMAN 議事録</h1><div class="lead">Plaud の録音から作った会議の記録</div>' + statsHtml);
 const sizes = {};
 sizes['index.html'] = write('index.html', indexHtml);
 
