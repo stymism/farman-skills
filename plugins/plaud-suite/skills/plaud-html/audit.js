@@ -95,9 +95,9 @@ if (!exists('index.html')) P('INDEX', 'index.html が無い');
 else {
   index = read('index.html');
   const cards = (index.match(/class="mtg-card/g) || []).length;
-  const ints  = (index.match(/class="mtg-card" data-type="internal"/g) || []).length;
-  const exts  = (index.match(/class="mtg-card" data-type="external"/g) || []).length;
-  const kowas = (index.match(/class="mtg-card" data-type="kowa"/g) || []).length;
+  const ints  = (index.match(/class="mtg-card[^"]*" data-type="internal"/g) || []).length;
+  const exts  = (index.match(/class="mtg-card[^"]*" data-type="external"/g) || []).length;
+  const kowas = (index.match(/class="mtg-card[^"]*" data-type="kowa"/g) || []).length;
 
   if (cards !== ints + exts + kowas)
     P('INDEX', `カード数(${cards}) != 内訳合計(社内${ints}+社外${exts}+講話${kowas})`);
@@ -320,12 +320,13 @@ for (const f of details) {
 
   // ── 3-7. 横断ページ・一覧のデータへの反映（gen-aux.js の出力）
   const stem = f.replace(/\.html$/, '');
-  for (const aux of ['entity-index.html', 'search-index.json', 'data/entities.json']) {
+  // 描画ページ（entity-index.html・decisions.html）は JSON から作るので、名前は data 側で見る（11-02）
+  for (const aux of ['search-index.json', 'data/entities.json']) {
     if (!exists(aux)) { P('AUX', `${aux} が無い（gen-aux.js 未実行）`, f); continue; }
     if (!readCached(aux).includes(stem)) P('AUX', `${aux} に ${stem} が含まれていない（gen-aux.js を再実行）`, f);
   }
   // decisions は decision-box を集約する。decision-box を持たないページ（講話）は載らないのが正しい
-  if (decs) for (const aux of ['decisions.html', 'data/decisions.json']) {
+  if (decs) for (const aux of ['data/decisions.json']) {
     if (!exists(aux)) P('AUX', `${aux} が無い（gen-aux.js 未実行）`, f);
     else if (!readCached(aux).includes(stem)) P('AUX', `${aux} に ${stem} が含まれていない（gen-aux.js を再実行）`, f);
   }
@@ -428,7 +429,7 @@ for (const f of details) {
     const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const gates = list.filter(x => x.gate === true).map(x => ({ x, re: new RegExp(x.pattern || esc(x['誤']), 'g') }));
     const GEN = ['index.html', 'decisions.html', 'entity-index.html', 'kowa-knowledge.html', 'search-index.json',
-      'data/decisions.json', 'data/decisions-recent.json', 'data/entities.json', 'data/keywords.json', 'data/todos.json'].filter(g => fs.existsSync(path.join(DIR, g)));
+      'data/decisions.json', 'data/entities.json', 'data/keywords.json', 'data/todos.json'].filter(g => fs.existsSync(path.join(DIR, g)));
     for (const g of GEN) {
       const s = read(g);
       for (const { x, re } of gates) { const n = (s.match(re) || []).length; if (n) P('TYPO', `生成物 ${g} に誤字「${x["誤"]}」が ${n} 回（正: ${x["正"]}）＝gen-aux.js / asana-sync.js を流し直す（出力に typos を当てる）`); }

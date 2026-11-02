@@ -353,7 +353,7 @@ $rec | Where-Object { -not $onSite[$_.file_id] } | Select-Object file_id, folder
 
 #### ▼ 必ず守る形（1 つでも抜けたら NG・STEP 5.7 の audit と下の自己点検で見る）
 
-- [ ] `<head>` は テンプレのとおり: `site.css?v=3` → `enhance.css?v=10` の順で読む。**ページに Google Fonts（`@import`・`<link>`）を書かない**。字（Noto Sans JP）は `site.css` の先頭で 1 回だけ読む（11-01 本人「シンプルになりすぎ。ダサい」で戻した。audit.js が消えたら止める）。ページで `font-family` を書かない
+- [ ] `<head>` は テンプレのとおり: `site.css?v=5` → `enhance.css?v=10` の順で読む。**ページに Google Fonts（`@import`・`<link>`）を書かない**。字（Noto Sans JP）は `site.css` の先頭で 1 回だけ読む（11-01 本人「シンプルになりすぎ。ダサい」で戻した。audit.js が消えたら止める）。ページで `font-family` を書かない
 - [ ] `<meta name="plaud-file-id">`（録音の印）と `<meta name="entities">`、`<meta name="description">`（一覧のカードの要約。要約の段落を本文に書かない代わり。10-29 に既存 102 本へも前の一覧のカードの要約を入れた）を入れる
 - [ ] ヘッダーは **1 行の帯**（高さ 120px 目安）: 戻る＋パンくず／バッジ＋題名／日付・録音の長さ・読了時間・場所・参加者。**議題の行は書かない**（目次・見出しと重複）。「FARMAN Inc.」の札も書かない
 - [ ] 本文 `<div class="detail-content" id="detailContent">` の**先頭に結論カード `<section class="concl-card" id="summary-card">`**（決まったこと 3〜5 行・宿題・次回）。**要約の段落（200 字）は書かない**（カードが代わり）
@@ -540,7 +540,7 @@ MTG の内容に合う図を 1〜2 種類選び、独自の内容で書く（プ
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
   <meta name="description" content="{会議の要約 1〜2 文（100 字前後）。一覧のカードの要約になる。ページには出ない}">
-  <link rel="stylesheet" href="site.css?v=2">
+  <link rel="stylesheet" href="site.css?v=5">
   <link rel="stylesheet" href="enhance.css?v=10">
   <!-- そのページだけの図の形があるときだけ: <style id="page-css">.my-chart-x{…}</style>（字 12px 以上・アニメーション・font-family は書かない） -->
 </head>
@@ -549,7 +549,7 @@ MTG の内容に合う図を 1〜2 種類選び、独自の内容で書く（プ
 
 <header class="detail-header"><div class="detail-header-inner">
   <div class="hd-top">
-    <a href="index.html" class="back-link"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 3L5 8l5 5"/></svg>一覧に戻る</a>
+    <a href="index.html" class="back-link"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 3L5 8l5 5"/></svg>一覧へ</a>
     <nav class="breadcrumb" aria-label="パンくずリスト"><a href="index.html">ホーム</a><span class="bc-sep">›</span><a href="index.html?filter=external">社外</a><span class="bc-sep">›</span><span class="bc-current">{タイトル}</span></nav>
   </div>
   <div class="hd-title"><span class="badge-header-external">🤝 社外</span><h1>{タイトル}</h1></div>
@@ -616,7 +616,7 @@ MTG の内容に合う図を 1〜2 種類選び、独自の内容で書く（プ
 </div>
 
 <script src="edit-mode.js?v=15"></script>
-<script src="enhance.js?v=8"></script>
+<script src="enhance.js?v=10"></script>
 </body></html>
 ```
 `#progressCount` と `#progressBar` は enhance.js が `data-done="1"` の数から書く（ページで数えない）。
@@ -724,7 +724,7 @@ index の作り（U2・全体改善案 v1.0 §2-2）:
 |---|---|---|
 | ホーム（既定・11-02） | 最近の会議 6 本のカード（日付・社内/社外・題・決まったこと 3 つ・「決定 n・宿題 n」）／期限が近い・過ぎた宿題（Asana の宿題で過去 30 日〜先 14 日の期限、8 件まで）／よく会う取引先 8 社／決定の一覧・言葉の索引・講話ナレッジへの入口。表紙に検索欄（打つと会議一覧で探す）と、押すと種類でしぼる数字のカード。前の「今週」（決まったことの文の羅列）は本人 11-02「トップページのUI/UX最悪じゃない？」でやめた。`#week` はホームに開く | 会議ページ・`data/todos.json`・`data/partners.json` の元 |
 | 宿題 | 人ごとのタブ（井上・瀬戸山・井出・田中・関根・豊田・青柳＋ほかの人＋担当未定）。期限順・済/未・期限切れは赤 | `data/todos.json`（タブを開いた時だけ読む） |
-| 取引先 | 社名の一覧 → `partners/<slug>.html` の年表 | `data/partners.json` の元と同じ集計 |
+| 取引先 | 「会議をした会社」と「ほかの会議で話に出ただけの会社」の 2 つに分けた一覧（並び: 会議の多い順・最近会った順・名前の順）→ `partners/<slug>.html` の年表 | `data/partners.json` の元と同じ集計 |
 | 会議一覧 | 会議カード（題・社内/社外/講話・要約 60 字・「決定 n・宿題 n」・録音時間）。種類・月・検索でしぼる | 会議ページ |
 
 - 全文検索は、一覧の検索欄に字を入れた時だけ `search-index.json` を読む（開くたびには読まない）。カードに `data-text` は持たない。
@@ -764,10 +764,10 @@ node "$skillDir\gen-aux.js" (($cfg.paths.work_dir) -replace '~', $env:USERPROFIL
 | `index.html` | STEP 5 の 4 タブ |
 | `style.css` | index・年表・決定・索引の共通 CSS（gen-aux.js の中の CSS を書き出す。`?v=` は中身のハッシュ） |
 | `search-index.json` | 全文検索（題・言葉・本文 6,000 字）。index は検索の時だけ読む |
-| `partners/<slug>.html` | 1 社 1 ページの年表: 日付 → 会議 → その会議の決定・宿題・次回 → 会議ページへのリンク。●＝題に社名がある会議（全部出す）、○＝ほかの会議で話に出た（社名がある決定・宿題だけ）。表から外れた社のページは消す |
-| `decisions.html` | 決定の一覧（軽い描画ページ）。最初は `data/decisions-recent.json`（新しい 15 会議）、検索・もっと見るで `data/decisions.json` |
-| `entity-index.html` | 取引先の一覧＋「人・会社・言葉で探す」（入れた時だけ `data/entities.json` を読む）。`?q=` も効く |
-| `data/decisions.json`・`data/decisions-recent.json` | 決定（会議ごと・見出しつき） |
+| `partners/<slug>.html` | 1 社 1 ページの年表（新しい順）: 日付 → 会議 → 決定は 2 件まで見せて残りは「ほか n 件」で開く・宿題は「宿題 n 件」で畳む（担当は前に丸い印、「担当未定」の文字は付けない）・次回は決まった時だけ。●＝題に社名がある会議、○＝ほかの会議で話に出た（その会社の名前がある決定・宿題だけ）。戻るは「← 取引先の一覧へ」（index.html#partner） |
+| `decisions.html` | 決定の一覧（軽い描画ページ）。`data/decisions.json` を読み、月の見出しで新しい順に全部（30 会議ずつ「もっと見る」）。種類のボタンと検索 |
+| `entity-index.html` | 言葉の索引: 検索欄＋よく出る言葉 24 個のボタン（`data/entities.json` を読む）。取引先の一覧と全部の会議の一覧は 11-02 に外した（取引先タブと会議一覧にある）。`?q=` も効く |
+| `data/decisions.json` | 決定（会議ごと・見出しつき） |
 | `data/partners.json` | 年表の元 |
 | `data/entities.json` | 言葉 → 会議 |
 | `data/todos.json` | 宿題（下の形）。**`"source":"asana"` の物（Asana 担当が夜に作る）があれば書かない**。無い・`"source":"pages"` の時だけ、ページの宿題行から仮の物を作る |
@@ -787,7 +787,7 @@ Asana 側の物に `"multi":[…]`（2 人以上の宿題）があれば、宿�
 
 **流した後に見る数**（gen-aux.js が最後に出す）: 会議の本数＝一覧のカード、決定の総数＝ページの decision-box の総数、宿題の総数＝ページの action-item の総数。「注意」が出たら（h1 が無い・決定が 0）そのページを開いて確かめる。
 
-> 古い URL は残す: `entity-index.html`・`decisions.html` は同じ名前のまま中身を軽い形にした（1.29MB・329KB → 約 21KB・13KB）。audit.js が「全ページの名前が入っているか」を見るので、両ページの下に会議の一覧（畳んだ物）を置いている。消さない。
+> 古い URL は残す: `entity-index.html`・`decisions.html` は同じ名前のまま中身を軽い形にした（1.29MB・329KB → 約 21KB・13KB）。audit.js が（11-02 から描画ページでなく `data/entities.json`・`data/decisions.json`・`search-index.json` に）「全ページの名前が入っているか」を見るので、両ページの下に会議の一覧（畳んだ物）を置いている。消さない。
 > `repair-index.ps1` は gen-aux.js を流すだけの物になった（index は作り直せば数が合う）。
 
 ### STEP 5.7: 自己監査を実行する（必須・不合格ならデプロイ禁止）
@@ -979,7 +979,7 @@ gh auth login
 - **動く飾り（浮かぶ粒・ふわっと出る・読み進みの帯）・ページごとの Google Fonts・ページ内スクリプトは書かない**（2026-10-29 本人「飾りを落として、軽さ・崩れなさ・印刷を優先」）。**ただし見た目の格好良さ（グラデーションの表紙・太い字・影のあるカード）は site.css が持つので消さない**（2026-11-01 本人「スタイリッシュ性は勝手に消さないで」）。見本は新しい作りのページ（例 `2026-09-11_farman-zentai.html`）を Read で読んでよい。古い作りのページを見本にしない
 - **「一覧に戻る」（`.back-link`）の折り返し止め（`white-space:nowrap`）は site.css が持つ**（ページには書かない。audit.js が site.css を見る）
 - **チャートは上記14種から選ぶ。プレースホルダーや空のチャートは禁止。必ず実際のMTG内容を反映した具体的な数値・ラベルを入れること**
-- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=2` / `enhance.css?v=10` / `enhance.js?v=8` / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）
+- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=2` / `enhance.css?v=10` / `enhance.js?v=10` / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）
 
 ### 別PC対応での注意
 - **初回セットアップが必須**: スキル初回実行前に `.\setup-plaud.ps1` を実行してください
