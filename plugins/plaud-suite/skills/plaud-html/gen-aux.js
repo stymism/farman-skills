@@ -513,6 +513,7 @@ body[data-tab]:not([data-tab="home"]) .top.hero h1{font-size:26px;margin:2px 0 0
 .lf{background:#fff;border-radius:14px;box-shadow:var(--sh1);padding:12px 16px;margin-bottom:18px;display:flex;flex-direction:column;gap:8px}
 .lf-row{display:flex;align-items:center;gap:10px;min-width:0}
 .lf .sbox{flex:1;border-radius:999px;font-size:15px;padding:10px 16px}
+@media(max-width:640px){.lf .sbox{flex:1 1 100%}}
 .lf .filter-count{font-size:14px;color:var(--sub);white-space:nowrap}.lf .filter-count b{color:var(--in);font-size:16px}
 .lf-l{font-size:12px;font-weight:700;color:var(--mute);min-width:2.6em;white-space:nowrap;flex-shrink:0;align-self:flex-start;padding-top:6px}
 .seg{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
@@ -821,7 +822,7 @@ for (const p of partnerData) {
     const box = dl || tl || nx ? `<div class="box">${dl}${tl}${nx}</div>` : (m.main ? '' : '<div class="ment-n">この会議の中で名前が話に出た（この会社の名前が入った決定・宿題はない）</div>');
     return `<li class="${m.main ? 'main' : 'ment'}"><div class="when">${m.date.replace(/-/g, '/')} ${badge(m.type)}${m.main ? '' : ' <span class="badge b-gray">話に出た</span>'}</div><div class="ttl"><a href="../${m.file}">${esc(m.title)}</a></div>${box}</li>`;
   }).join('\n');
-  const sum = `<div class="sum">会議 ${p.main_count} 回${p.count > p.main_count ? `・ほかの会議で話に出た ${p.count - p.main_count} 回` : ''}。${lastMain ? `最後の会議は <a href="../${lastMain.file}">${md(lastMain.date)} ${esc(lastMain.title)}</a>。` : ''}この年表の宿題 <span class="nw">${openTodos} 件</span>${p.aliases.length ? `<br><span class="note">ほかの書き方: ${esc(p.aliases.join('・'))}</span>` : ''}</div>`;
+  const sum = `<div class="sum">会議 ${p.main_count} 回${p.count > p.main_count ? `・ほかの会議で話に出た ${p.count - p.main_count} 回` : ''}。${lastMain ? `最後の会議は <a href="../${lastMain.file}">${md(lastMain.date)} ${esc(lastMain.title.replace(/^\d{1,2}[-/]\d{1,2}\s*/, ''))}</a>。` : ''}この年表の宿題 <span class="nw">${openTodos} 件</span>${p.aliases.length ? `<br><span class="note">ほかの書き方: ${esc(p.aliases.join('・'))}</span>` : ''}</div>`;
   const body = `<main class="wrap">${sum}<ol class="tl">${items}</ol><p class="note">新しい順。●＝その会社との会議／○＝ほかの会議で話に出た（その会社の名前がある決定・宿題だけ）。</p></main>`;
   write(`partners/${p.slug}.html`, page({ title: `${p.name} の年表`, h1: `${esc(p.name)} の年表`, body, up: '../', backHref: 'index.html#partner', backText: '← 取引先の一覧へ' }));
 }
