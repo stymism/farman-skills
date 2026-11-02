@@ -95,9 +95,9 @@ if (!exists('index.html')) P('INDEX', 'index.html が無い');
 else {
   index = read('index.html');
   const cards = (index.match(/class="mtg-card/g) || []).length;
-  const ints  = (index.match(/data-type="internal"/g) || []).length;
-  const exts  = (index.match(/data-type="external"/g) || []).length;
-  const kowas = (index.match(/data-type="kowa"/g) || []).length;
+  const ints  = (index.match(/class="mtg-card" data-type="internal"/g) || []).length;
+  const exts  = (index.match(/class="mtg-card" data-type="external"/g) || []).length;
+  const kowas = (index.match(/class="mtg-card" data-type="kowa"/g) || []).length;
 
   if (cards !== ints + exts + kowas)
     P('INDEX', `カード数(${cards}) != 内訳合計(社内${ints}+社外${exts}+講話${kowas})`);

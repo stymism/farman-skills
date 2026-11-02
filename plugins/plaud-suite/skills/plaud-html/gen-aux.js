@@ -6,7 +6,7 @@
    新しい作り（先頭の結論カード・宿題行 id="todo-<n>"・data-asana・data-done）の両方で動く。
 
    出力（work_dir の中）:
-     index.html              4 つのタブ（今週・宿題・取引先・一覧）。一覧カードは要約 60 字＋「決定 n・宿題 n」
+     index.html              4 つのタブ（ホーム・宿題・取引先・会議一覧）。表紙に検索欄と数字のカード（11-02）。一覧カードは要約 60 字＋「決定 n・宿題 n」
      style.css               index と横断ページの共通 CSS（Noto Sans JP・字は 12px 以上・動く飾り無し・11-01 にグラデーションと影を戻した）
      search-index.json       全文検索用。index は検索欄を使ったときだけ読む
      data/decisions.json     決定の全部（会議ごと）
@@ -500,13 +500,61 @@ details.all li{padding:2px 0}
 .top-in{padding:18px 16px 20px}
 .top h1{font-size:22px;font-weight:900;letter-spacing:.02em}
 .back{border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:2px 10px;background:rgba(255,255,255,.07)}
-.top.hero .top-in{display:block;padding:44px 16px 40px}
+.top.hero .top-in{display:grid;grid-template-columns:1fr minmax(0,460px);gap:8px 32px;align-items:end;padding:30px 16px 28px}
 .top.hero .eyebrow{font-size:12px;font-weight:700;letter-spacing:.25em;opacity:.8}
-.top.hero h1{font-size:clamp(34px,6vw,50px);line-height:1.15;margin:8px 0 6px;letter-spacing:.03em}
+.top.hero h1{font-size:clamp(30px,5vw,42px);line-height:1.15;margin:6px 0 4px;letter-spacing:.03em}
+.top.hero .eyebrow,.top.hero h1,.top.hero .lead{grid-column:1}
+.top.hero .hs,.top.hero .stats{grid-column:2}
+.top.hero .hs{grid-row:1 / span 2;align-self:end}
+.hs input{width:100%;border:0;border-radius:999px;padding:12px 20px;font-size:15px;color:var(--ink);background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.18);outline:none}
+.hs input:focus{box-shadow:0 0 0 3px rgba(149,213,178,.7),0 6px 24px rgba(0,0,0,.18)}
 .top.hero .lead{font-size:14px;opacity:.85}
-.top.hero .stats{gap:12px;margin-top:22px;opacity:1}
-.top.hero .stats span{display:flex;flex-direction:column;min-width:86px;padding:10px 16px 9px;border-radius:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:700;line-height:1.3}
-.top.hero .stats strong{font-size:26px;font-weight:900;line-height:1.15;margin:0}
+.top.hero .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;opacity:1}
+.top.hero .stats button{display:flex;flex-direction:column;align-items:flex-start;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:700;line-height:1.3;cursor:pointer;transition:background .15s}
+.top.hero .stats button:hover{background:rgba(255,255,255,.2)}
+.top.hero .stats strong{font-size:22px;font-weight:900;line-height:1.15;margin:0}
+/* ホーム */
+.hm-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:6px 0 10px}
+.hm-h h2{font-size:18px;font-weight:900;letter-spacing:.02em}
+.hm-h small{font-size:12px;font-weight:400;color:var(--mute);margin-left:6px}.hm-h.sm{margin-top:18px}.hm-h.sm h2{font-size:15px}
+.lk{border:0;background:none;color:var(--in);font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
+.lk:hover{text-decoration:underline}
+.rcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:26px}
+.rc{display:flex;flex-direction:column;background:#fff;border-radius:14px;padding:14px 18px 12px;text-decoration:none;color:var(--ink);box-shadow:var(--sh1);transition:transform .15s,box-shadow .15s}
+.rc:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.rc-d{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.rc-d b{font-size:15px;color:var(--in);font-weight:900}
+.rc-t{font-size:16px;font-weight:900;line-height:1.45;margin:4px 0 6px}
+.rc ul{list-style:none;flex:1}
+.rc li{font-size:14px;color:var(--sub);line-height:1.6;padding:2px 0 2px 12px;position:relative;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.rc li::before{content:"";position:absolute;left:1px;top:.7em;width:5px;height:5px;border-radius:50%;background:#52b788}
+.rc-s{font-size:13px;color:var(--sub);flex:1;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.rc-m{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);border-top:1px solid var(--line);margin-top:10px;padding-top:8px}
+.rc-m span{color:var(--in);font-weight:700}
+.hm-2{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;align-items:start}
+.pane{background:#fff;border-radius:14px;padding:14px 18px;box-shadow:var(--sh1)}
+.dl{list-style:none;margin-bottom:6px}
+.dh{font-size:14px;font-weight:900;color:var(--in);margin:8px 0 2px;display:flex;gap:8px;align-items:baseline}
+.dh.late{color:var(--red);margin-top:14px}.dh span{font-size:12px;font-weight:700;color:var(--mute)}
+.dm{font-size:13px;color:var(--sub);margin-top:8px}
+.pane .empty{text-align:left;padding:6px 0;font-size:13px}
+.top.hero .sh{grid-column:2;font-size:12px;opacity:.8;margin-top:2px}
+.dl li{display:grid;grid-template-columns:5.2em 5em 1fr;gap:8px;align-items:baseline;font-size:14px;padding:7px 0;border-top:1px solid var(--line)}
+.dl li:first-child{border-top:0}
+.dl a{color:var(--ink);text-decoration:none}.dl a:hover{color:var(--in);text-decoration:underline}
+.du{font-size:12px;font-weight:700;color:var(--in);white-space:nowrap}.du.late{color:var(--red)}
+.dw{font-size:12px;color:var(--sub);font-weight:700;overflow-wrap:anywhere}
+.tps{display:flex;flex-wrap:wrap;gap:8px}
+.tp{display:inline-flex;align-items:center;gap:6px;background:var(--inbg);color:var(--in);border-radius:999px;padding:5px 12px;font-size:14px;font-weight:700;text-decoration:none}
+.tp span{font-size:11px;background:#fff;border-radius:999px;padding:0 7px;line-height:18px}
+.tp:hover{background:#d3eadb}
+.qk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.qk a{display:block;border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-decoration:none;color:var(--ink)}
+.qk a:hover{border-color:#9fb8a8}
+.qk b{display:block;font-size:15px}.qk span{display:block;font-size:13px;color:var(--sub);line-height:1.5;margin-top:2px}
+.tab{white-space:nowrap}
+@media(max-width:600px){.top.hero .top-in{padding:18px 16px 16px}.top.hero .eyebrow,.top.hero .lead{display:none}.top.hero h1{font-size:28px;margin:0 0 4px}.hs input{padding:10px 16px;font-size:14px}.top.hero .stats{gap:6px}.top.hero .stats button{padding:6px 8px}.top.hero .stats strong{font-size:18px}.tabs-in{gap:4px;padding:8px 10px}.tab{font-size:13px;padding:6px 2px}.tab .n{display:none}}
+@media(max-width:860px){.top.hero .top-in{grid-template-columns:1fr}.top.hero .hs,.top.hero .stats,.top.hero .sh{grid-column:1;grid-row:auto}.hm-2{grid-template-columns:1fr}.qk{grid-template-columns:1fr}}
 .tabs{background:rgba(255,255,255,.96);border-bottom:0;box-shadow:var(--sh1)}
 .tabs-in{gap:8px;padding:10px 16px}
 .tab{border:1px solid var(--line);border-radius:999px;padding:7px 4px;background:#fff}
@@ -523,8 +571,8 @@ details.all li{padding:2px 0}
 .card-grid{gap:12px}.pl{gap:10px}
 .sbox,.sel{border-radius:999px;border-color:var(--line);box-shadow:var(--sh1)}
 .chip{box-shadow:var(--sh1);border-color:transparent}
-@media(min-width:768px){.tab{font-size:16px}.top h1{font-size:24px}.top.hero h1{font-size:50px}}
-@media print{.tabs,.filters,.more,.foot{display:none}body{background:#fff}.top,.top.hero{background:#fff;color:#111;border-bottom:2px solid #111}.top a{color:#111}.top.hero .top-in{padding:0 0 8px}.top.hero .stats span{border-color:#999;background:#fff}.wk,.td,.pl a,.mtg-card,.dg,.sum,.tl .box{box-shadow:none;border:1px solid #bbb}}
+@media(min-width:768px){.tab{font-size:16px}.top h1{font-size:24px}.top.hero h1{font-size:42px}}
+@media print{.tabs,.filters,.more,.foot,.hs,.lk{display:none}body{background:#fff}.top,.top.hero{background:#fff;color:#111;border-bottom:2px solid #111}.top a{color:#111}.top.hero .top-in{padding:0 0 8px}.top.hero .stats span{border-color:#999;background:#fff}.wk,.td,.pl a,.mtg-card,.dg,.sum,.tl .box{box-shadow:none;border:1px solid #bbb}}
 `;
 const CSSV = crypto.createHash('md5').update(CSS).digest('hex').slice(0, 8);
 write('style.css', CSS);
@@ -548,26 +596,29 @@ const allList = (label, rs, up = '') => `<details class="all"><summary>${label}�
 
 /* ---- index.html ---- */
 const cnt = { all: records.length, internal: records.filter(r => r.type === 'internal').length, external: records.filter(r => r.type === 'external').length, kowa: records.filter(r => r.type === 'kowa').length };
-const newest = records.reduce((m, r) => r.date > m ? r.date : m, '');
-const weekFrom = new Date(new Date(newest + 'T00:00:00Z').getTime() - 13 * 864e5).toISOString().slice(0, 10);
-const weekRecs = records.filter(r => r.date >= weekFrom && r.decisions.length).sort((a, b) => b.date.localeCompare(a.date));
-const weekHtml = weekRecs.map(r => `<section class="wk" data-date="${r.date}"><h3><a href="${r.file}">${esc(ttl(r))}</a> ${badge(r.type)}</h3><ul>${r.decisions.map(d => `<li>${d.ctx ? `<span class="ctx">${esc(d.ctx)}</span>` : ''}${esc(d.txt)}</li>`).join('')}</ul></section>`).join('\n');
 const partnerHtml = partnerData.map(p => `<li data-n="${esc([p.name].concat(p.aliases).join(' '))}"><a href="partners/${p.slug}.html"><span class="nm">${esc(p.name)}</span><span class="ct">会議 ${p.main_count ? `${p.main_count} 回` : '—'}${p.count > p.main_count ? `・話に出た ${p.count - p.main_count}` : ''}<br>最後 ${md(p.last)}</span></a></li>`).join('');
 const cardHtml = records.map(r => `<a href="${r.file}" class="mtg-card" data-type="${r.type}" data-month="${r.date.slice(0, 7)}"><div class="c-t">${esc(ttl(r))} ${badge(r.type)}</div><div class="c-s">${esc(r.summary)}</div><div class="c-m">${r.type === 'kowa' ? '講話' : `決定 ${r.decisions.length}・宿題 ${r.todos.length}`}${r.dur ? ` ・ 録音 ${esc(r.dur)}` : ''}</div></a>`).join('\n');
 const months = Array.from(new Set(records.map(r => r.date.slice(0, 7)))).sort().reverse();
-const DEFAULT_TAB = 'week';   // U5 の判断で変えるときはここだけ（week / todo / partner / list）
+const DEFAULT_TAB = 'home';   // 2026-11-02 本人「トップページのUI/UX最悪じゃない？」→ 開いて最初は「ホーム」（最近の会議・期限の近い宿題・よく会う取引先）
+/* ホーム: 最近の会議 6 本（決まったこと 3 つまで）・よく会う取引先 8 社。宿題は data/todos.json を読んで出す */
+const recentHtml = records.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6).map(r => `<a class="rc" href="${r.file}" data-date="${r.date}"><div class="rc-d"><b>${+r.date.slice(5, 7)}/${+r.date.slice(8, 10)}</b>${badge(r.type)}</div><div class="rc-t">${esc(r.title.replace(/^\d\d-\d\d\s*/, ''))}</div>${r.decisions.length ? `<ul>${r.decisions.slice(0, 3).map(d => `<li>${esc(d.txt)}</li>`).join('')}</ul>` : `<p class="rc-s">${esc(r.summary)}</p>`}<div class="rc-m">${r.type === 'kowa' ? '講話' : `決定 ${r.decisions.length}・宿題 ${r.todos.length}`}<span>開く →</span></div></a>`).join('');
+const topPartnerHtml = partnerData.filter(p => p.main_count).sort((a, b) => b.main_count - a.main_count || String(b.last).localeCompare(String(a.last))).slice(0, 8).map(p => `<a class="tp" href="partners/${p.slug}.html">${esc(p.name)}<span>${p.main_count} 回</span></a>`).join('');
 
 const indexBody = `<nav class="tabs" aria-label="入口"><div class="tabs-in" role="tablist">
-<button class="tab" role="tab" id="t-week" aria-controls="p-week" aria-selected="false">今週</button>
+<button class="tab" role="tab" id="t-home" aria-controls="p-home" aria-selected="false">ホーム</button>
 <button class="tab" role="tab" id="t-todo" aria-controls="p-todo" aria-selected="false">宿題</button>
 <button class="tab" role="tab" id="t-partner" aria-controls="p-partner" aria-selected="false">取引先<span class="n">${partnerData.length}</span></button>
-<button class="tab" role="tab" id="t-list" aria-controls="p-list" aria-selected="false">一覧<span class="n">${records.length}</span></button>
+<button class="tab" role="tab" id="t-list" aria-controls="p-list" aria-selected="false">会議一覧<span class="n">${records.length}</span></button>
 </div></nav>
 <main class="wrap">
-<section id="p-week" role="tabpanel" aria-labelledby="t-week" hidden>
-<p class="note" id="weekNote">直近の会議で決まったこと</p>
-<div id="weekList">${weekHtml || '<p class="empty">決まったことの記録がありません</p>'}</div>
-<p class="note">前の会議の決定は <a href="decisions.html">決定の一覧</a> に全部あります。</p>
+<section id="p-home" role="tabpanel" aria-labelledby="t-home" hidden>
+<div class="hm-h"><h2>最近の会議<small id="lastAgo"></small></h2><button type="button" class="lk" data-go="list">会議一覧へ →</button></div>
+<div class="rcs">${recentHtml}</div>
+<div class="hm-2">
+<div class="pane"><div class="hm-h"><h2>宿題の期限</h2><button type="button" class="lk" data-go="todo">自分の名前で見る →</button></div><div id="dueBox"><p class="empty">読み込み中…</p></div></div>
+<div class="pane"><div class="hm-h"><h2>よく会う取引先<small>（会議の回数の多い 8 社）</small></h2><button type="button" class="lk" data-go="partner">${partnerData.length} 社を全部見る →</button></div><div class="tps">${topPartnerHtml}</div>
+<div class="hm-h sm"><h2>まとめて見る</h2></div><div class="qk"><a href="decisions.html"><b>決定の一覧</b><span>全部の会議で決まったことを新しい順に</span></a><a href="entity-index.html"><b>言葉の索引</b><span>社名・品目・人の名前から、出てくる会議を探す</span></a><a href="kowa-knowledge.html"><b>講話ナレッジ</b><span>講話・講演の録音の要点</span></a></div></div>
+</div>
 </section>
 <section id="p-todo" role="tabpanel" aria-labelledby="t-todo" hidden>
 <p class="note" id="todoNote">読み込み中…</p>
@@ -593,23 +644,31 @@ ${cardHtml}
 </div>
 </section>
 </main>
-<footer class="foot"><a href="decisions.html">決定の一覧</a><a href="entity-index.html">取引先と言葉の索引</a><a href="kowa-knowledge.html">講話ナレッジ</a></footer>`;
+`;
 
 const indexScript = `(function(){
-var TABS=['week','todo','partner','list'],DEF='${DEFAULT_TAB}',STAFF=${jsonEmbed(STAFF_TABS)};
+var TABS=['home','todo','partner','list'],DEF='${DEFAULT_TAB}',STAFF=${jsonEmbed(STAFF_TABS)};
 function $(id){return document.getElementById(id)}
-function show(t,push){if(TABS.indexOf(t)<0)t=DEF;TABS.forEach(function(x){$('p-'+x).hidden=x!==t;$('t-'+x).setAttribute('aria-selected',x===t?'true':'false')});if(push&&history.replaceState)history.replaceState(null,'',location.pathname+location.search+'#'+t);if(t==='todo')loadTodos();}
+function show(t,push){if(t==='week')t='home';if(TABS.indexOf(t)<0)t=DEF;TABS.forEach(function(x){$('p-'+x).hidden=x!==t;$('t-'+x).setAttribute('aria-selected',x===t?'true':'false')});if(push&&history.replaceState)history.replaceState(null,'',location.pathname+location.search+'#'+t);if(t==='todo'||t==='home')loadTodos();}
 TABS.forEach(function(x){$('t-'+x).onclick=function(){show(x,true)}});
-/* 今週: 今日から 7 日→少なければ 14 日→無ければ最後の 2 週 */
-(function(){var secs=[].slice.call(document.querySelectorAll('#weekList .wk'));if(!secs.length)return;var now=new Date();now.setHours(0,0,0,0);
-function age(s){return Math.round((now-new Date(s.dataset.date+'T00:00:00'))/864e5)}
-function count(d){return secs.filter(function(s){return age(s)<d}).reduce(function(n,s){return n+s.querySelectorAll('li').length},0)}
-var d=count(7)>=3?7:(count(14)>0?14:0),n=$('weekNote');
-if(d){secs.forEach(function(s){s.hidden=age(s)>=d});n.textContent=(d===7?'この 7 日':'この 2 週間')+'の会議で決まったこと（新しい順）';}
-else{var last=secs[0].dataset.date;n.textContent='この 2 週間は会議の記録がありません。最後の会議（'+(+last.slice(5,7))+'/'+(+last.slice(8))+'・'+age(secs[0])+' 日前）までの 2 週分で決まったことです。';}})();
-/* 宿題: data/todos.json を開いた時だけ読む */
-var TD=null,who=null,lim=50;
-function loadTodos(){if(TD)return;TD={};fetch('data/todos.json',{cache:'no-cache'}).then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(j){TD=j;renderPeople()}).catch(function(e){$('todoNote').textContent='宿題の一覧（data/todos.json）を読めませんでした（'+e+'）。';});}
+(function(){var f=document.querySelector('.rc');if(!f)return;var d=f.getAttribute('data-date'),n=Math.round((new Date().setHours(0,0,0,0)-new Date(d+'T00:00:00'))/864e5);$('lastAgo').textContent='（いちばん新しい会議は '+(+d.slice(5,7))+'/'+(+d.slice(8))+'・'+(n<=0?'今日':n+' 日前')+'）';})();
+[].forEach.call(document.querySelectorAll('[data-go]'),function(b){b.onclick=function(){show(b.getAttribute('data-go'),true);scrollTo(0,0)}});
+/* 表紙: 検索欄に打つと「全部の会議」で探す・数字のカードを押すと種類でしぼる */
+$('hq').oninput=function(){$('q').value=this.value;$('ft').value='all';$('fm').value='all';show('list',true);search();};
+[].forEach.call(document.querySelectorAll('.stats [data-type]'),function(b){b.onclick=function(){$('ft').value=b.getAttribute('data-type');$('fm').value='all';$('q').value='';$('hq').value='';hitSet=null;$('qNote').hidden=true;show('list',true);filt();var g=$('p-list');if(g.scrollIntoView)g.scrollIntoView({behavior:'smooth'})}});
+/* 宿題: data/todos.json を 1 回だけ読む（ホームの「期限が近い宿題」と宿題のタブで使う） */
+var TD=null,who=null,lim=50,P=null;
+function loadTodos(){if(!P)P=fetch('data/todos.json',{cache:'no-cache'}).then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(j){TD=j;renderPeople();renderDue()}).catch(function(e){$('todoNote').textContent='宿題の一覧（data/todos.json）を読めませんでした（'+e+'）。';$('dueBox').innerHTML='<p class="empty">宿題の一覧を読めませんでした</p>';});return P;}
+function renderDue(){var today=new Date().toISOString().slice(0,10),lim14=new Date(Date.now()+14*864e5).toISOString().slice(0,10),from30=new Date(Date.now()-30*864e5).toISOString().slice(0,10),seen={},a=[],none=0;
+function add(k,list){(list||[]).forEach(function(t){if(t.done||!t.due||t.due>lim14||t.due<from30)return;if(!k){none++;return}var key=(t.title||'')+'|'+t.due;if(seen[key]){if(seen[key].who.indexOf(k)<0)seen[key].who.push(k);return}var x={t:t,who:[k]};seen[key]=x;a.push(x)})}
+Object.keys(TD.people||{}).forEach(function(k){add(k,TD.people[k])});(TD.multi||[]).forEach(function(t){add((t.who||t['with']||[]).join&&(t.who||t['with']).join('・')||'複数人',[t])});add('',TD.unassigned);
+a.sort(function(x,y){return x.t.due<y.t.due?-1:x.t.due>y.t.due?1:0});
+var soon=a.filter(function(x){return x.t.due>=today}),late=a.filter(function(x){return x.t.due<today}).reverse();
+function rows(list,n){return list.slice(0,n).map(function(x){var t=x.t,lt=t.due<today,href=e(t.page)+(t.anchor?'#'+e(t.anchor):'');return '<li><span class="du'+(lt?' late':'')+'">'+(+t.due.slice(5,7))+'/'+(+t.due.slice(8))+'</span><span class="dw">'+e(x.who.join('・'))+'</span>'+(t.page?'<a href="'+href+'">'+e(t.title)+'</a>':'<span>'+e(t.title)+'</span>')+'</li>'}).join('')}
+var h='<h3 class="dh">これから 2 週間<span>'+soon.length+' 件</span></h3>'+(soon.length?'<ul class="dl">'+rows(soon,5)+'</ul>':'<p class="empty">この 2 週間に期限の来る宿題はありません</p>');
+h+='<h3 class="dh late">期限が過ぎた（この 30 日）<span>'+late.length+' 件</span></h3>'+(late.length?'<ul class="dl">'+rows(late,5)+'</ul>':'<p class="empty">ありません</p>');
+if(soon.length>5||late.length>5||none)h+='<p class="dm">'+(soon.length+late.length>10?'ほかは「宿題」のタブで名前ごとに見られます。':'')+(none?'担当の決まっていない宿題が '+none+' 件あります（「宿題」のタブの「担当未定」）。':'')+'</p>';
+$('dueBox').innerHTML=h;}
 function open(a){return a.filter(function(t){return !t.done}).length}
 function renderPeople(){var p=TD.people||{},keys=STAFF.filter(function(k){return p[k]}).concat(Object.keys(p).filter(function(k){return STAFF.indexOf(k)<0}));
 var src=TD.source==='asana'?'Asana から':'会議ページから仮に作った一覧（済かどうかは分かりません。Asana の取り込みが動くと Asana の済/未に変わります）';
@@ -641,8 +700,8 @@ if(f&&/^(internal|external|kowa)$/.test(f)){$('ft').value=f;filt();h='list'}
 if(q){$('q').value=q;search();h='list'}
 show(h||DEF,false);
 })();`;
-const statsHtml = `<div class="stats"><span><strong data-count="${cnt.all}">${cnt.all}</strong> 全件</span><span><strong data-count="${cnt.internal}">${cnt.internal}</strong> 社内</span><span><strong data-count="${cnt.external}">${cnt.external}</strong> 社外</span><span><strong data-count="${cnt.kowa}">${cnt.kowa}</strong> 講話録音</span></div>`;
-const indexHtml = page({ title: 'FARMAN 議事録', h1: 'FARMAN 議事録', back: false, body: indexBody, script: indexScript }).replace('<h1>FARMAN 議事録</h1>', '<h1>FARMAN 議事録</h1><div class="lead">Plaud の録音から作った会議の記録</div>' + statsHtml);
+const statsHtml = `<div class="hs"><input id="hq" type="search" placeholder="会議・社名・言葉で探す（例: ニンニク、イズミフーズ）" aria-label="会議を探す" autocomplete="off"></div><div class="stats"><button type="button" data-type="all"><strong data-count="${cnt.all}">${cnt.all}</strong> 全部</button><button type="button" data-type="internal"><strong data-count="${cnt.internal}">${cnt.internal}</strong> 社内</button><button type="button" data-type="external"><strong data-count="${cnt.external}">${cnt.external}</strong> 社外</button><button type="button" data-type="kowa"><strong data-count="${cnt.kowa}">${cnt.kowa}</strong> 講話</button></div><div class="sh">数字を押すと、その種類の会議にしぼれます</div>`;
+const indexHtml = page({ title: 'FARMAN 議事録', h1: 'FARMAN 議事録', back: false, body: indexBody, script: indexScript }).replace('<h1>FARMAN 議事録</h1>', '<h1>FARMAN 議事録</h1><div class="lead">会議で決まったこと・宿題・取引先との流れ</div>' + statsHtml);
 const sizes = {};
 sizes['index.html'] = write('index.html', indexHtml);
 
