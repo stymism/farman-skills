@@ -372,7 +372,7 @@ plaud の get_note で要約を取り、作業場 <作業場> にそのファイ
 
 #### ▼ 必ず守る形（1 つでも抜けたら NG・STEP 5.7 の audit と下の自己点検で見る）
 
-- [ ] `<head>` は テンプレのとおり: `site.css?v=6` → `enhance.css?v=10` の順で読む。**ページに Google Fonts（`@import`・`<link>`）を書かない**。字（Noto Sans JP）は `site.css` の先頭で 1 回だけ読む（11-01 本人「シンプルになりすぎ。ダサい」で戻した。audit.js が消えたら止める）。ページで `font-family` を書かない
+- [ ] `<head>` は テンプレのとおり: `site.css?v=7` → `enhance.css?v=10` の順で読む。**ページに Google Fonts（`@import`・`<link>`）を書かない**。字（Noto Sans JP）は `site.css` の先頭で 1 回だけ読む（11-01 本人「シンプルになりすぎ。ダサい」で戻した。audit.js が消えたら止める）。ページで `font-family` を書かない
 - [ ] `<meta name="plaud-file-id">`（録音の印）と `<meta name="entities">`、`<meta name="description">`（一覧のカードの要約。要約の段落を本文に書かない代わり。10-29 に既存 102 本へも前の一覧のカードの要約を入れた）を入れる
 - [ ] ヘッダーは **1 行の帯**（高さ 120px 目安）: 戻る＋パンくず／バッジ＋題名／日付・録音の長さ・読了時間・場所・参加者。**議題の行は書かない**（目次・見出しと重複）。「FARMAN Inc.」の札も書かない
 - [ ] 本文 `<div class="detail-content" id="detailContent">` の**先頭に結論カード `<section class="concl-card" id="summary-card">`**（決まったこと 3〜5 行・宿題・次回）。**要約の段落（200 字）は書かない**（カードが代わり）
@@ -559,7 +559,7 @@ MTG の内容に合う図を 1〜2 種類選び、独自の内容で書く（プ
   <title>{Plaudタイトル} — Farman MTG Summaries</title>
   <meta name="entities" content="{人物・企業名をカンマ区切り。例: 井上,瀬戸山,双日,坂ノ途中}">
   <meta name="description" content="{会議の要約 1〜2 文（100 字前後）。一覧のカードの要約になる。ページには出ない}">
-  <link rel="stylesheet" href="site.css?v=6">
+  <link rel="stylesheet" href="site.css?v=7">
   <link rel="stylesheet" href="enhance.css?v=10">
   <!-- そのページだけの図の形があるときだけ: <style id="page-css">.my-chart-x{…}</style>（字 12px 以上・アニメーション・font-family は書かない） -->
 </head>
@@ -998,7 +998,7 @@ gh auth login
 - **動く飾り（浮かぶ粒・ふわっと出る・読み進みの帯）・ページごとの Google Fonts・ページ内スクリプトは書かない**（2026-10-29 本人「飾りを落として、軽さ・崩れなさ・印刷を優先」）。**ただし見た目の格好良さ（グラデーションの表紙・太い字・影のあるカード）は site.css が持つので消さない**（2026-11-01 本人「スタイリッシュ性は勝手に消さないで」）。見本は新しい作りのページ（例 `2026-09-11_farman-zentai.html`）を Read で読んでよい。古い作りのページを見本にしない
 - **「一覧に戻る」（`.back-link`）の折り返し止め（`white-space:nowrap`）は site.css が持つ**（ページには書かない。audit.js が site.css を見る）
 - **チャートは上記14種から選ぶ。プレースホルダーや空のチャートは禁止。必ず実際のMTG内容を反映した具体的な数値・ラベルを入れること**
-- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=6` / `enhance.css?v=10` / `enhance.js?v=11`（11-02 夕に上げた） / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）
+- **エンティティ強調・キーワードチップ・関連MTGは「本文（`<p>`・decision-box）」内で使う**。`enhance.js` はフレックス系UI（`.ai-list`/`.action-list`/カード等）内ではエンティティ強調をスキップする（テキスト分割でレイアウトが崩れるため）。`enhance.js`・`edit-mode.js`・`site.css`・`enhance.css` を更新したらHTML側の `?v=N` を必ず上げる（キャッシュ対策。現行 `site.css?v=7` / `enhance.css?v=10` / `enhance.js?v=11`（11-02 夕に上げた） / `edit-mode.js?v=15`（10-29 夜に上げた）。audit.js は全ページの最頻値を正とする）。enhance.js が持つのは「共通の層」節のとおり（目次・宿題のコピーと済の印・節バーとページ内検索・見出しの🔗・トップに戻る・用語の説明・人と会社の強調・右下のボタン〈目次・ダーク表示・Markdown コピー・印刷〉）。**既読マーク（`plaud-read-*`）は 10-29 にやめた。** **客先送付用の 📥 ダウンロード（edit-mode.js）は、差込UI・パンくず・kw-barを除去して単体で崩れないHTMLを出力する**（10-29 夜: `meta plaud-file-id`〈内部の番号〉と `meta description`〈伏せる前の要約〉も消す）（「📥 ダウンロード」節参照）。**📥 の HTML はサイトに戻さない**（STEP 6.9）
 
 ### 別PC対応での注意
 - **初回セットアップが必須**: スキル初回実行前に `.\setup-plaud.ps1` を実行してください
