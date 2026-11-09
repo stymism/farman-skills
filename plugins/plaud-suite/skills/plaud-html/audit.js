@@ -354,6 +354,28 @@ for (const f of details) {
   const noPubFiles = new Map(noPub.filter(x => x['ページ']).map(x => [x['ページ'], x]));
   const okFolder = new Map((Array.isArray(folders) ? folders : [folders]).map(x => [x.file_id, x.folder]));
   const PUBLISH = new Set(['社内', '社外', '講話録音', '学生発表']);
+  // 11-09: 会議取り込み_log で「確からしさ: 高/中」かつ「HTML: 未」（または「済 <このページ>」）の行も承認として読む（SKILL.md STEP 1 の 2）。
+  //   効くのは Plaud で「未振り分け」の録音だけ（本人が 面接 などへ振り分けた物はフォルダが正）。分類が 社内・社外・講話録音・学生発表 で、
+  //   行の末尾の「本人の答え」が 載せない・面接 でない物。場所は環境変数 PLAUD_MTG_LOG（既定 OneDrive の 右腕AI\00_Resources\会議取り込み_log.md）
+  const logPath = process.env.PLAUD_MTG_LOG || path.join(process.env.OneDrive || path.join(os.homedir(), 'OneDrive'), '右腕AI', '00_Resources', '会議取り込み_log.md');
+  const logApproved = new Map();   // file_id → { html: '未' | '済 xxx.html' }
+  try {
+    for (const line of fs.readFileSync(logPath, 'utf8').split(/\r?\n/)) {
+      const id = (line.match(/\s((?:of_|f_)[0-9a-f]{16,})\s/) || [])[1];
+      if (!id) continue;
+      const col = k => ((line.match(new RegExp('｜\\s*' + k + '[:：]\\s*([^｜]*)')) || [])[1] || '').trim();
+      const conf = col('確からしさ'), cls = col('分類'), html = col('HTML'), ans = col('本人の答え');
+      if (!/^[高中]/.test(conf) || !PUBLISH.has(cls.replace(/[（(].*$/, '').trim())) continue;
+      if (/載せない|面接/.test(ans)) continue;
+      if (!/^(未|済)/.test(html)) continue;
+      logApproved.set(id, { html });
+    }
+  } catch (e) { /* log が読めなければ承認に足さない（止まる側に倒す） */ }
+  const logOk = (id, f) => {
+    const r = logApproved.get(id);
+    if (!r || okFolder.get(id) !== '未振り分け') return false;
+    return /^未/.test(r.html) || r.html.includes(f);
+  };
   // 10-29: file_id が分からない既存の 28 本（録音の印を入れる前に作ったページ）。新しく作るページは必ず meta が要る。
   //   ここに名前を足してよいのは「Plaud に録音がもう無い」と確かめた既存ページだけ（新しいページを足して関門を外さない）。
   //   A = Plaud の一覧（4.0・117 件）に同じ日付・題名の録音が無い（Plaud 側で消したか、4.0 の前に作ったページ）
@@ -405,8 +427,8 @@ for (const f of details) {
     byId.set(id, [...(byId.get(id) || []), f]);
     if (/^of_n_note:/.test(id))
       P('PUB', `録音 ${id} は「- Highlights／- 会議議事録」の写し（of_n_note:）＝元の録音のページだけ載せる（plaud_規則.json の folders.載せない型）`, f);
-    if (!(fo && PUBLISH.has(fo)) && !approved.has(id))
-      P('PUB', `録音 ${id} は Plaud で${fo ? '「' + fo + '」' : '見つからない'}・承認の一覧にも無い＝載せない（未振り分けは本人が振り分けるか朝の報告で答えるまで待つ）`, f);
+    if (!(fo && PUBLISH.has(fo)) && !approved.has(id) && !logOk(id, f))
+      P('PUB', `録音 ${id} は Plaud で${fo ? '「' + fo + '」' : '見つからない'}・承認の一覧にも会議取り込み_log の 高/中 にも無い＝載せない（未振り分けは本人が振り分けるか朝の報告で答えるまで待つ）`, f);
   }
   globalThis.__noFileIdOk = Object.keys(NO_FILEID_OK).filter(f => details.includes(f) && !/plaud-file-id/.test(read(f))).length;
   for (const [id, fs] of byId) if (fs.length > 1)
