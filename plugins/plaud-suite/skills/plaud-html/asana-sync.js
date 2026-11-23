@@ -32,6 +32,8 @@
  * 結び方（確かな物だけ）: 出典（notes 1 行目の「出典：YYYY-MM-DD <会議名>」、または【右腕AI】の
  *   「出典: <録音の題名> <録音日> Plaud <file_id>」→ ページの meta plaud-file-id）でページを 1 本に決め、
  *   宿題の文（「：担当：期限」と【右腕AI】・空白・記号を外す）と Asana の題名が同じ、または片方がもう片方を含み長さが 8 割以上。
+ *   会議取り込み_log の `Asana 登録: <gid> …` の行の終わりに `→ todo-N` があれば、文の一致より先に
+ *   録音の印のページの N 番目に結ぶ（N 番目が無い・別の行の方が題名に近い・担当が違うときは止める）。
  *   それ以外は結ばず、unsure に理由つきで出す。
  */
 'use strict';
@@ -225,8 +227,11 @@ function readLog(file) {
     if (rec) { cur = { md: rec[1], title: rec[2], fileId: rec[3] }; continue; }
     if (/^- \d{4}-\d{2}-\d{2}/.test(line)) { const y = line.match(/^- (\d{4})/)[1]; cur = null; out._year = y; continue; }
     let m;
-    if ((m = line.match(/Asana 登録:\s*(\d{10,})\s+(.+?)(?:[（(]期限\s*(\d{4}-\d{2}-\d{2})[）)])?\s*$/))) {
-      out.registered.push({ gid: m[1], title: m[2].trim(), due: m[3] || null, rec: cur });
+    // 行の終わりの `→ todo-N` は、録音のページの N 番目の宿題に結ぶ印（題名に混ぜない）
+    const pin = line.match(/\s*→\s*todo-(\d+)\s*$/);
+    const body = pin ? line.slice(0, pin.index) : line;
+    if ((m = body.match(/Asana 登録:\s*(\d{10,})\s+(.+?)(?:[（(]期限\s*(\d{4}-\d{2}-\d{2})[）)])?\s*$/))) {
+      out.registered.push({ gid: m[1], title: m[2].trim(), due: m[3] || null, rec: cur, todoN: pin ? Number(pin[1]) : null });
     } else if ((m = line.match(/登録せず:\s*(.+?)\s+[—\-–]\s+(.+)$/))) {
       out.notRegistered.push({ title: m[1].trim(), reason: m[2].trim(), rec: cur, year: out._year || null });
     } else if (/^\s+-\s*答え\s/.test(line) && out.notRegistered.length) {
@@ -250,6 +255,18 @@ function dice(a, b) {
   for (const [k, v] of A) inter += Math.min(v, B.get(k) || 0);
   return na + nb ? (2 * inter) / (na + nb) : 0;
 }
+// log の `→ todo-N` で結ぶ。録音の印のページが 1 本で、N 番目があり、そのページの中で N 番目が題名にいちばん近いときだけ
+function pickByNumber(pages, fileId, n, key) {
+  const hit = fileId ? pages.filter((p) => p.fileId === fileId) : [];
+  if (hit.length !== 1) return { reason: `番号 todo-${n} の録音のページが 1 本に決まらない（${hit.length} 本）` };
+  const p = hit[0];
+  const it = p.items.find((x) => x.n === n);
+  if (!it) return { reason: `番号 todo-${n} がページに無い` };
+  const d = dice(key, it.key);
+  const closer = p.items.find((x) => x !== it && dice(key, x.key) > d);
+  if (closer) return { reason: `番号 todo-${n} より todo-${closer.n} の方が題名に近い（番号の誤りのおそれ）` };
+  return { p, it };
+}
 function link(pages, asana, log) {
   const pageByFile = new Map(pages.map((p) => [p.file, p]));
   const logByGid = new Map(log.registered.map((r) => [r.gid, r]));
@@ -268,11 +285,14 @@ function link(pages, asana, log) {
     }
     if (!cands.length) { unsure.push({ gid: g.gid, name: g.name, reason: 'ページが見つからない（出典の日付・会議名・file_id に当たるページが無い）', src: g.src }); continue; }
     const key = norm(g.name);
+    // log に番号があれば文の一致より先に見る。番号が怪しいときは文で結び直さず止める
+    const pinned = lr && lr.todoN ? pickByNumber(pages, fileId, lr.todoN, key) : null;
+    if (pinned && pinned.reason) { unsure.push({ gid: g.gid, name: g.name, reason: pinned.reason, src: g.src, pages: cands.map((p) => p.file) }); continue; }
     const hits = [];
-    for (const p of cands) for (const it of p.items) if (similar(key, it.key)) hits.push({ p, it, exact: key === it.key });
-    let pick = hits.filter((h) => h.exact);
-    if (pick.length !== 1) pick = pick.length ? pick : hits;
-    let how = pick.length === 1 ? (pick[0].exact ? '同じ文' : '片方が含む') : null;
+    if (!pinned) for (const p of cands) for (const it of p.items) if (similar(key, it.key)) hits.push({ p, it, exact: key === it.key });
+    let pick = pinned ? [pinned] : hits.filter((h) => h.exact);
+    if (!pinned && pick.length !== 1) pick = pick.length ? pick : hits;
+    let how = pinned ? `番号(todo-${lr.todoN})` : (pick.length === 1 ? (pick[0].exact ? '同じ文' : '片方が含む') : null);
     if (!pick.length) {
       // 言い回しが少し違う物（「評価」/「を評価する」、會舘/会館）: 2 文字ずつの一致度 0.75 以上で、2 番目と 0.15 以上の差がある 1 行だけ
       const sc = [];
