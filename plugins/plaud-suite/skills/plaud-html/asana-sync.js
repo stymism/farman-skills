@@ -19,6 +19,8 @@
  *   --apply-pages ページの宿題行に data-asana="<gid>" と data-done="1" を付ける（何度流しても同じ結果）
  *   --pages-dir   --apply-pages で書くページの置き場（既定は --site。試すときは写しの置き場を指す）
  *   --dry-run     何も書かず、数だけ出す
+ *   --gone        gid,gid … 前回の todos.json にあって今回の読み取りに無い宿題のうち、get_task で
+ *                 消えた・会議の宿題でなくなったと確かめた物。これ以外の欠けがあると何も書かず終了コード 1
  *
  * 入力の形（--asana の .json）:
  *   {"read_at":"2026-10-29T18:00:00+09:00",
@@ -62,6 +64,7 @@ function parseArgs(argv) {
     else if (k === '--apply-pages') a.applyPages = true;
     else if (k === '--pages-dir') a.pagesDir = v();
     else if (k === '--today') a.today = v();
+    else if (k === '--gone') a.gone = v().split(',').map((s) => s.trim()).filter(Boolean);
     else if (k === '--dry-run') a.dryRun = true;
     else if (k === '-h' || k === '--help') { console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0]); process.exit(0); }
     else { console.error('知らない引数: ' + k); process.exit(2); }
@@ -317,6 +320,21 @@ function link(pages, asana, log) {
 }
 
 // ---------- todos.json ----------
+// 11-24: 期限・日付が同じ行は gid・ページ・番号・題名で固定する（Asana を読む順番で並びが変わり、中身が同じでも差分が出ていた）
+const cmp = (x, y) => { const a = String(x == null ? '' : x), b = String(y == null ? '' : y); return a < b ? -1 : a > b ? 1 : 0; };
+function todoSort(a, b) {
+  return (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.date || '').localeCompare(String(a.date || ''))
+    || cmp(a.gid, b.gid) || cmp(a.page, b.page) || cmp(a.anchor, b.anchor) || cmp(a.title, b.title);
+}
+// 11-24: 前回の todos.json にあった gid が今回の読み取りに無い物。読み取りの欠けは、数の照合（読んだ数＝映した数）では見つからない
+function missingFromRead(prev, tasks, gone) {
+  if (!prev) return [];
+  const now = new Set(tasks.map((t) => t.gid));
+  const ok = new Set(gone || []);
+  const before = new Set();
+  for (const list of [...Object.values(prev.people || {}), prev.unassigned || [], prev.multi || []]) for (const t of list) if (t.gid) before.add(t.gid);
+  return [...before].filter((g) => !now.has(g) && !ok.has(g));
+}
 function asanaUrl(projects, projGid, gid) { return `https://app.asana.com/0/${projGid}/${gid}`; }
 function buildTodos(pages, asana, linked, log, readAt) {
   const people = Object.fromEntries(PEOPLE.map((p) => [p, []]));
@@ -385,9 +403,8 @@ function buildTodos(pages, asana, linked, log, readAt) {
     unassigned.push({ title: r.title, due: null, done: false, gid: null, asana_url: null, page: null, anchor: null,
       meeting: r.rec ? r.rec.title : null, date: r.rec && r.year ? `${r.year}-${r.rec.md}` : null, reason: r.reason, source: 'log' });
   }
-  const sortFn = (a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.date || '').localeCompare(String(a.date || ''));
-  for (const k of PEOPLE) people[k].sort(sortFn);
-  unassigned.sort(sortFn); multi.sort(sortFn);
+  for (const k of PEOPLE) people[k].sort(todoSort);
+  unassigned.sort(todoSort); multi.sort(todoSort);
   const total = Object.values(people).reduce((n, a) => n + a.length, 0) + unassigned.length + multi.length;
   return { generated: jstNow(), source: 'asana', asana_read_at: readAt, total, people, unassigned, multi };
 }
@@ -520,6 +537,16 @@ function main() {
     linked: linked.links.length, unsure: linked.unsure.length, excluded_no_publish: excluded.length,
     notes_to_add: plan.filter((x) => !x.skip).length, notes_already: plan.filter((x) => x.skip).length,
   };
+  // 11-24: 読み取りの欠けの関門（11-17 夜に 1 件欠け、同じ題の別の gid にすり替わったまま push された）
+  let prevTodos = null;
+  if (fs.existsSync(a.out)) prevTodos = JSON.parse(fs.readFileSync(a.out, 'utf8').replace(/^﻿/, ''));
+  const missing = missingFromRead(prevTodos, asana.doc.tasks, a.gone);
+  if (missing.length) {
+    console.log(JSON.stringify(summary, null, 1));
+    console.error(`読み取りの欠け: 前回あった宿題 ${missing.length} 件が今回の Asana の読み取りに無い（何も書いていない）。読み直すか、get_task で確かめて --gone に渡す: ${missing.join(',')}`);
+    process.exitCode = 1;
+    return;
+  }
   if (!a.dryRun) {
     fs.mkdirSync(path.dirname(a.out), { recursive: true });
     fs.writeFileSync(a.out, formatTodos(fixTypos(todos)), 'utf8');
@@ -534,4 +561,4 @@ function main() {
   if (summary.todos_gids !== summary.asana_meeting_tasks) { console.error(`照合ずれ: todos.json の gid ${summary.todos_gids} 件 ≠ Asana の会議の宿題 ${summary.asana_meeting_tasks} 件`); process.exitCode = 1; }
 }
 if (require.main === module) main();
-module.exports = { norm, parseItem, readPages, readAsana, readLog, link, buildTodos, buildNotesPlan, applyPages };
+module.exports = { norm, parseItem, readPages, readAsana, readLog, link, buildTodos, buildNotesPlan, applyPages, missingFromRead, todoSort };

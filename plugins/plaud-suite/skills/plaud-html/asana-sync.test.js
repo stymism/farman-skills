@@ -50,5 +50,19 @@ check('録音の印のページが無ければ止まる', x.r.links.length === 0
 x = run(' → todo-4', { project: '井出' });
 check('担当が違えば番号があっても止まる', x.r.links.length === 0 && /担当が違う/.test((x.r.unsure[0] || {}).reason || ''));
 
+// 読み取りの欠け（11-17 夜: 1 件が入力に無く、同じ題の別の gid にすり替わったのに終了コード 0 だった）
+const mod = require('./asana-sync.js');
+const prev = { people: { 担当A: [{ gid: 'a' }, { gid: null }] }, unassigned: [], multi: [{ gid: 'b' }] };
+const miss = (tasks, gone) => (mod.missingFromRead ? mod.missingFromRead(prev, tasks, gone) : null);
+check('前回あった宿題が読み取りに無ければ出す', JSON.stringify(miss([{ gid: 'b' }], [])) === '["a"]');
+check('全部あれば何も出さない', JSON.stringify(miss([{ gid: 'a' }, { gid: 'b' }], [])) === '[]');
+check('--gone で確かめた物は出さない', JSON.stringify(miss([{ gid: 'b' }], ['a'])) === '[]');
+check('前回の todos.json が無ければ止めない', !!mod.missingFromRead && mod.missingFromRead(null, [], []).length === 0);
+
+// 入力の順番で todos.json の並びが変わらない
+const row = (gid) => ({ done: false, due: null, date: '2026-08-14', gid, page: 'p.html', anchor: 'todo-1', title: 't' });
+const sorted = (ids) => (mod.todoSort ? ids.map(row).sort(mod.todoSort).map((r) => r.gid).join() : null);
+check('同じ期限・同じ日の行は gid の順に固定', sorted(['3', '1', '2']) === '1,2,3' && sorted(['2', '3', '1']) === '1,2,3');
+
 console.log(ng ? `ASANA_SYNC_TEST: NG ${ng}` : 'ASANA_SYNC_TEST: OK');
 process.exitCode = ng ? 1 : 0;
