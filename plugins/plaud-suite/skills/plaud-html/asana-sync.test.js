@@ -20,7 +20,7 @@ function run(marker, opts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'asana-sync-test-'));
   const logFile = path.join(dir, 'log.md');
   const id = opts.fileId || FILE;
-  fs.writeFileSync(logFile, `- 2026-11-11\n  - 11-11「商談」 ${id}\n    - Asana 登録: ${GID} ${TITLE}(期限 2026-11-27。同上)${marker}\n`, 'utf8');
+  fs.writeFileSync(logFile, `- 2026-11-11\n  - 11-11「商談」 ${id}\n    - Asana 登録: ${GID} ${TITLE}(期限 2026-11-27。${opts.reason || '同上'})${marker}\n`, 'utf8');
   const log = readLog(logFile);
   fs.rmSync(dir, { recursive: true, force: true });
   const g = { gid: GID, name: TITLE, completed: false, due_on: '2026-11-27', notes: '', projects: [opts.project || '瀬戸山'], isMeeting: true, src: null, hasLink: false };
@@ -49,6 +49,17 @@ check('録音の印のページが無ければ止まる', x.r.links.length === 0
 
 x = run(' → todo-4', { project: '井出' });
 check('担当が違えば番号があっても止まる', x.r.links.length === 0 && /担当が違う/.test((x.r.unsure[0] || {}).reason || ''));
+
+// 11-25: 担当を意図して替えた物（log に `→ todo-N 担当替え` と替えた理由）
+x = run(' → todo-4 担当替え', { project: '井出' });
+check('担当替えの印でも、log に新しい担当の名前が無ければ止まる', x.r.links.length === 0 && /担当替えの印/.test((x.r.unsure[0] || {}).reason || ''));
+x = run(' → todo-4 担当替え', { project: '井出', reason: '要約は担当@瀬戸山だが窓口は井出のため' });
+check('担当替えの印と理由があれば結ぶ', x.r.links.length === 1 && x.r.links[0].anchor === 'todo-4' && /担当替え/.test(x.r.links[0].how));
+check('担当替えの印を題名に混ぜない', x.log.registered[0] && !/担当替え|todo-/.test(x.log.registered[0].title));
+x = run(' → todo-1 担当替え', { project: '井出', reason: '窓口は井出のため' });
+check('担当替えでも違う番号は止まる', x.r.links.length === 0 && /番号/.test((x.r.unsure[0] || {}).reason || ''));
+x = run(' 担当替え', { project: '井出', reason: '窓口は井出のため' });
+check('番号の無い担当替えは結ばない', x.r.links.length === 0);
 
 // 読み取りの欠け（11-17 夜: 1 件が入力に無く、同じ題の別の gid にすり替わったのに終了コード 0 だった）
 const mod = require('./asana-sync.js');

@@ -36,6 +36,7 @@
  *   宿題の文（「：担当：期限」と【右腕AI】・空白・記号を外す）と Asana の題名が同じ、または片方がもう片方を含み長さが 8 割以上。
  *   会議取り込み_log の `Asana 登録: <gid> …` の行の終わりに `→ todo-N` があれば、文の一致より先に
  *   録音の印のページの N 番目に結ぶ（N 番目が無い・別の行の方が題名に近い・担当が違うときは止める）。
+ *   担当を意図して替えた物は `→ todo-N 担当替え` と書く。log の同じ行に Asana 側の担当の名前（替えた理由）があるときだけ、担当が違っても結ぶ。
  *   それ以外は結ばず、unsure に理由つきで出す。
  */
 'use strict';
@@ -231,10 +232,11 @@ function readLog(file) {
     if (/^- \d{4}-\d{2}-\d{2}/.test(line)) { const y = line.match(/^- (\d{4})/)[1]; cur = null; out._year = y; continue; }
     let m;
     // 行の終わりの `→ todo-N` は、録音のページの N 番目の宿題に結ぶ印（題名に混ぜない）
-    const pin = line.match(/\s*→\s*todo-(\d+)\s*$/);
+    // 11-25: `→ todo-N 担当替え` は、ページの担当と Asana の担当を意図して替えた印（log の行に替えた理由と新しい担当の名前が要る）
+    const pin = line.match(/\s*→\s*todo-(\d+)(\s+担当替え)?\s*$/);
     const body = pin ? line.slice(0, pin.index) : line;
     if ((m = body.match(/Asana 登録:\s*(\d{10,})\s+(.+?)(?:[（(]期限\s*(\d{4}-\d{2}-\d{2})[）)])?\s*$/))) {
-      out.registered.push({ gid: m[1], title: m[2].trim(), due: m[3] || null, rec: cur, todoN: pin ? Number(pin[1]) : null });
+      out.registered.push({ gid: m[1], title: m[2].trim(), due: m[3] || null, rec: cur, todoN: pin ? Number(pin[1]) : null, reassigned: !!(pin && pin[2]), text: body });
     } else if ((m = line.match(/登録せず:\s*(.+?)\s+[—\-–]\s+(.+)$/))) {
       out.notRegistered.push({ title: m[1].trim(), reason: m[2].trim(), rec: cur, year: out._year || null });
     } else if (/^\s+-\s*答え\s/.test(line) && out.notRegistered.length) {
@@ -311,7 +313,10 @@ function link(pages, asana, log) {
     // 担当の食い違い（人のプロジェクトにあるのに、ページの担当にその人がいない）は確かでないとして結ばない
     const persons = g.projects.filter((x) => x !== '複数人');
     if (it.assignees.length && persons.length && !persons.some((x) => it.assignees.includes(x))) {
-      unsure.push({ gid: g.gid, name: g.name, reason: `担当が違う（Asana: ${persons.join('・')} / ページ: ${it.assignees.join('・')}）`, page: p.file, anchor: it.anchor });
+      // 11-25: log に `→ todo-N 担当替え` があり、番号で結べていて、log の行に Asana 側の担当の名前（替えた理由）があるときだけ結ぶ
+      const why = pinned && lr.reassigned && persons.some((x) => (lr.text || '').includes(x));
+      if (why) { links.push({ gid: g.gid, page: p.file, anchor: it.anchor, n: it.n, projects: g.projects, completed: g.completed, how: `${how}・担当替え`, page_text: it.text }); continue; }
+      unsure.push({ gid: g.gid, name: g.name, reason: `担当が違う（Asana: ${persons.join('・')} / ページ: ${it.assignees.join('・')}）${lr && lr.reassigned ? '・担当替えの印はあるが番号で結べていないか log の行に新しい担当の名前が無い' : ''}`, page: p.file, anchor: it.anchor });
       continue;
     }
     links.push({ gid: g.gid, page: p.file, anchor: it.anchor, n: it.n, projects: g.projects, completed: g.completed, how, page_text: it.text });
